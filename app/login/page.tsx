@@ -28,6 +28,11 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        // If setup is needed, redirect to setup page
+        if (data.setupNeeded) {
+          router.push('/setup');
+          return;
+        }
         setError(data.error || 'Login failed');
         setLoading(false);
         return;

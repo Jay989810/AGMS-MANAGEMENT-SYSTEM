@@ -9,7 +9,20 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    await connectDB();
+    // Test database connection first
+    try {
+      await connectDB();
+      console.log('Database connected successfully');
+    } catch (dbError: any) {
+      console.error('Database connection error:', dbError);
+      return NextResponse.json(
+        { 
+          error: 'Database connection failed. Please check your MONGODB_URI environment variable.',
+          details: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+        },
+        { status: 500 }
+      );
+    }
 
     const { email, password } = await request.json();
 
@@ -17,6 +30,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Email and password are required' },
         { status: 400 }
+      );
+    }
+
+    // Check if any users exist in database
+    const userCount = await User.countDocuments();
+    if (userCount === 0) {
+      console.error('Login failed: No users found in database');
+      return NextResponse.json(
+        { 
+          error: 'No users found. Please run setup first.',
+          setupNeeded: true,
+          setupUrl: '/setup'
+        },
+        { status: 401 }
       );
     }
 
