@@ -99,7 +99,9 @@ export default function NewMemberPage() {
         throw new Error('Failed to create member');
       }
 
+      // Redirect and refresh
       router.push('/members');
+      router.refresh();
     } catch (error) {
       console.error('Error creating member:', error);
       alert('Failed to create member. Please try again.');
@@ -110,40 +112,40 @@ export default function NewMemberPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold text-navy">Add New Member</h1>
+      <div className="max-w-4xl mx-auto space-y-4 lg:space-y-6">
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy">Add New Member</h1>
 
         <form onSubmit={handleSubmit}>
           <Card>
-            <div className="space-y-6">
+            <div className="space-y-4 lg:space-y-6">
               {/* Profile Image */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Profile Photo
                 </label>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                   {imagePreview ? (
                     <img
                       src={imagePreview}
                       alt="Preview"
-                      className="w-24 h-24 rounded-full object-cover"
+                      className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center">
-                      <span className="text-gray-400">No Image</span>
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gray-200 flex items-center justify-center">
+                      <span className="text-gray-400 text-xs sm:text-sm">No Image</span>
                     </div>
                   )}
                   <input
                     type="file"
                     accept="image/*"
                     onChange={handleImageChange}
-                    className="text-sm"
+                    className="text-sm w-full sm:w-auto"
                   />
                 </div>
               </div>
 
               {/* Basic Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="Full Name *"
                   value={formData.fullName}

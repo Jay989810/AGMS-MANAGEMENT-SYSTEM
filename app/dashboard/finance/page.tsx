@@ -61,7 +61,9 @@ export default function FinancePage() {
       if (filters.startDate) params.append('startDate', filters.startDate);
       if (filters.endDate) params.append('endDate', filters.endDate);
 
-      const res = await fetch(`/api/finance?${params}`);
+      const res = await fetch(`/api/finance?${params}`, {
+        credentials: 'include',
+      });
       const data = await res.json();
       setRecords(data.records || []);
     } catch (error) {
@@ -77,7 +79,9 @@ export default function FinancePage() {
       if (filters.startDate) params.append('startDate', filters.startDate);
       if (filters.endDate) params.append('endDate', filters.endDate);
 
-      const res = await fetch(`/api/finance/summary?${params}`);
+      const res = await fetch(`/api/finance/summary?${params}`, {
+        credentials: 'include',
+      });
       const data = await res.json();
       setSummary(data);
     } catch (error) {
@@ -96,6 +100,7 @@ export default function FinancePage() {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
+        credentials: 'include',
       });
 
       if (!res.ok) {
@@ -103,11 +108,22 @@ export default function FinancePage() {
         throw new Error(error.error || 'Failed to save record');
       }
 
+      const data = await res.json();
+      // Update UI immediately
+      if (editingId) {
+        setRecords(records.map(r => r._id === editingId ? data.record : r));
+        setToast({ message: 'Record updated successfully', type: 'success', isVisible: true });
+      } else {
+        setRecords([data.record, ...records]);
+        setToast({ message: 'Record created successfully', type: 'success', isVisible: true });
+      }
       resetForm();
+      setShowModal(false);
+      // Refresh to ensure consistency
       fetchRecords();
       fetchSummary();
     } catch (error: any) {
-      alert(error.message || 'Failed to save record. Please try again.');
+      setToast({ message: error.message || 'Failed to save record. Please try again.', type: 'error', isVisible: true });
     }
   };
 
@@ -130,16 +146,23 @@ export default function FinancePage() {
     if (!confirm('Are you sure you want to delete this record?')) return;
 
     try {
-      const res = await fetch(`/api/finance/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/finance/${id}`, { 
+        method: 'DELETE',
+        credentials: 'include',
+      });
       if (res.ok) {
+        // Update UI immediately
+        setRecords(records.filter(r => r._id !== id));
+        setToast({ message: 'Record deleted successfully', type: 'success', isVisible: true });
+        // Refresh to ensure consistency
         fetchRecords();
         fetchSummary();
       } else {
-        alert('Failed to delete record');
+        setToast({ message: 'Failed to delete record', type: 'error', isVisible: true });
       }
     } catch (error) {
       console.error('Failed to delete record:', error);
-      alert('Failed to delete record');
+      setToast({ message: 'Failed to delete record', type: 'error', isVisible: true });
     }
   };
 
@@ -215,23 +238,24 @@ export default function FinancePage() {
         />
 
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-navy">Financial Records</h1>
-          <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <h1 className="text-2xl lg:text-3xl font-bold text-navy">Financial Records</h1>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             {records.length > 0 && (
               <Button
                 variant="gold"
                 onClick={handleExportCSV}
-                className="flex items-center gap-2"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 <Download size={20} />
-                Export CSV
+                <span className="hidden sm:inline">Export CSV</span>
+                <span className="sm:hidden">Export</span>
               </Button>
             )}
             <Button
               variant="primary"
               onClick={() => setShowModal(true)}
-              className="flex items-center gap-2"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto"
             >
               <Plus size={20} />
               Add Record
@@ -241,12 +265,12 @@ export default function FinancePage() {
 
         {/* Summary Cards */}
         {summary && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
             <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-green-700 text-sm font-medium">Total Income</p>
-                  <p className="text-3xl font-bold text-green-800 mt-2">
+                  <p className="text-2xl lg:text-3xl font-bold text-green-800 mt-2">
                     {formatCurrency(summary.totalIncome)}
                   </p>
                   <p className="text-xs text-green-600 mt-1">
@@ -263,7 +287,7 @@ export default function FinancePage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-red-700 text-sm font-medium">Total Expense</p>
-                  <p className="text-3xl font-bold text-red-800 mt-2">
+                  <p className="text-2xl lg:text-3xl font-bold text-red-800 mt-2">
                     {formatCurrency(summary.totalExpense)}
                   </p>
                   <p className="text-xs text-red-600 mt-1">
@@ -280,7 +304,7 @@ export default function FinancePage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-navy text-sm font-medium">Current Balance</p>
-                  <p className={`text-3xl font-bold mt-2 ${summary.balance >= 0 ? 'text-navy' : 'text-red-700'}`}>
+                  <p className={`text-2xl lg:text-3xl font-bold mt-2 ${summary.balance >= 0 ? 'text-navy' : 'text-red-700'}`}>
                     {formatCurrency(summary.balance)}
                   </p>
                   <p className="text-xs text-navy mt-1">
@@ -311,7 +335,7 @@ export default function FinancePage() {
               </Button>
             )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Select
               label="Category"
               value={filters.category}
@@ -356,34 +380,50 @@ export default function FinancePage() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <table className="w-full min-w-[700px]">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Date</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Category</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Description</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Type</th>
-                    <th className="text-right py-3 px-4 font-semibold text-gray-700">Amount</th>
-                    <th className="text-right py-3 px-4 font-semibold text-gray-700">Actions</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Date</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm hidden md:table-cell">Category</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Description</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm hidden lg:table-cell">Type</th>
+                    <th className="text-right py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Amount</th>
+                    <th className="text-right py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {records.map((record) => (
                     <tr key={record._id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <Calendar size={16} />
-                          <span>{format(new Date(record.date), 'MMM dd, yyyy')}</span>
+                      <td className="py-3 px-2 sm:px-4">
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-2 text-gray-600 text-sm">
+                            <Calendar size={14} className="hidden sm:inline" />
+                            <span>{format(new Date(record.date), 'MMM dd, yyyy')}</span>
+                          </div>
+                          <div className="md:hidden mt-1">
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-gold/20 text-navy">
+                              {record.category}
+                            </span>
+                            <span
+                              className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+                                record.type === 'Income'
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}
+                            >
+                              {record.type}
+                            </span>
+                          </div>
                         </div>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-2 sm:px-4 hidden md:table-cell">
                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-gold/20 text-navy">
                           {record.category}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-gray-600">{record.description}</td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-2 sm:px-4 text-gray-600 text-sm">{record.description}</td>
+                      <td className="py-3 px-2 sm:px-4 hidden lg:table-cell">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
                             record.type === 'Income'
@@ -394,7 +434,7 @@ export default function FinancePage() {
                           {record.type}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right font-semibold">
+                      <td className="py-3 px-2 sm:px-4 text-right font-semibold text-sm">
                         <span
                           className={record.type === 'Income' ? 'text-green-700' : 'text-red-700'}
                         >
@@ -402,21 +442,21 @@ export default function FinancePage() {
                           {formatCurrency(record.amount)}
                         </span>
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="py-3 px-2 sm:px-4">
+                        <div className="flex items-center justify-end gap-1 sm:gap-2">
                           <Button
                             variant="secondary"
-                            className="p-2"
+                            className="p-1.5 sm:p-2"
                             onClick={() => handleEdit(record)}
                           >
-                            <Edit size={16} />
+                            <Edit size={14} className="sm:w-4 sm:h-4" />
                           </Button>
                           <Button
                             variant="danger"
-                            className="p-2"
+                            className="p-1.5 sm:p-2"
                             onClick={() => handleDelete(record._id)}
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} className="sm:w-4 sm:h-4" />
                           </Button>
                         </div>
                       </td>

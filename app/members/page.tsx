@@ -35,7 +35,9 @@ export default function MembersPage() {
       if (search) params.append('search', search);
       if (ministryFilter) params.append('ministry', ministryFilter);
       
-      const res = await fetch(`/api/members?${params}`);
+      const res = await fetch(`/api/members?${params}`, {
+        credentials: 'include',
+      });
       const data = await res.json();
       setMembers(data.members || []);
     } catch (error) {
@@ -47,7 +49,9 @@ export default function MembersPage() {
 
   const fetchDepartments = async () => {
     try {
-      const res = await fetch('/api/departments');
+      const res = await fetch('/api/departments', {
+        credentials: 'include',
+      });
       const data = await res.json();
       setDepartments(data.departments || []);
     } catch (error) {
@@ -59,12 +63,22 @@ export default function MembersPage() {
     if (!confirm('Are you sure you want to delete this member?')) return;
 
     try {
-      const res = await fetch(`/api/members/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/members/${id}`, { 
+        method: 'DELETE',
+        credentials: 'include',
+      });
       if (res.ok) {
+        // Update UI immediately
+        setMembers(members.filter(m => m._id !== id));
+        setToast({ message: 'Member deleted successfully', type: 'success', isVisible: true });
+        // Refresh to ensure consistency
         fetchMembers();
+      } else {
+        setToast({ message: 'Failed to delete member', type: 'error', isVisible: true });
       }
     } catch (error) {
       console.error('Failed to delete member:', error);
+      setToast({ message: 'Failed to delete member', type: 'error', isVisible: true });
     }
   };
 
@@ -113,21 +127,22 @@ export default function MembersPage() {
           onClose={() => setToast({ ...toast, isVisible: false })}
         />
 
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-navy">Members</h1>
-          <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <h1 className="text-2xl lg:text-3xl font-bold text-navy">Members</h1>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             {members.length > 0 && (
               <Button
                 variant="gold"
                 onClick={handleExportCSV}
-                className="flex items-center gap-2"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 <Download size={20} />
-                Export CSV
+                <span className="hidden sm:inline">Export CSV</span>
+                <span className="sm:hidden">Export</span>
               </Button>
             )}
-            <Link href="/members/new">
-              <Button variant="primary" className="flex items-center gap-2">
+            <Link href="/members/new" className="w-full sm:w-auto">
+              <Button variant="primary" className="flex items-center justify-center gap-2 w-full sm:w-auto">
                 <Plus size={20} />
                 Add Member
               </Button>
@@ -172,23 +187,23 @@ export default function MembersPage() {
               </Link>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <table className="w-full min-w-[640px]">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Photo</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Name</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Gender</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Phone</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Department</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
-                    <th className="text-right py-3 px-4 font-semibold text-gray-700">Actions</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Photo</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Name</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm hidden md:table-cell">Gender</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm hidden lg:table-cell">Phone</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm hidden md:table-cell">Department</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Status</th>
+                    <th className="text-right py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {members.map((member) => (
                     <tr key={member._id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-2 sm:px-4">
                         {member.profileImage ? (
                           <Image
                             src={member.profileImage}
@@ -198,16 +213,22 @@ export default function MembersPage() {
                             className="rounded-full object-cover"
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-navy flex items-center justify-center text-white font-semibold">
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-navy flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
                             {member.fullName.charAt(0).toUpperCase()}
                           </div>
                         )}
                       </td>
-                      <td className="py-3 px-4 font-medium">{member.fullName}</td>
-                      <td className="py-3 px-4 text-gray-600">{member.gender}</td>
-                      <td className="py-3 px-4 text-gray-600">{member.phone}</td>
-                      <td className="py-3 px-4 text-gray-600">{member.ministry || 'N/A'}</td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-2 sm:px-4 font-medium text-sm">
+                        <div className="flex flex-col">
+                          <span>{member.fullName}</span>
+                          <span className="text-xs text-gray-500 md:hidden">{member.gender} • {member.phone}</span>
+                          <span className="text-xs text-gray-500 lg:hidden md:inline">{member.phone}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-2 sm:px-4 text-gray-600 text-sm hidden md:table-cell">{member.gender}</td>
+                      <td className="py-3 px-2 sm:px-4 text-gray-600 text-sm hidden lg:table-cell">{member.phone}</td>
+                      <td className="py-3 px-2 sm:px-4 text-gray-600 text-sm hidden md:table-cell">{member.ministry || 'N/A'}</td>
+                      <td className="py-3 px-2 sm:px-4">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
                             member.membershipStatus === 'Active'
@@ -220,24 +241,24 @@ export default function MembersPage() {
                           {member.membershipStatus}
                         </span>
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="py-3 px-2 sm:px-4">
+                        <div className="flex items-center justify-end gap-1 sm:gap-2">
                           <Link href={`/members/${member._id}`}>
-                            <Button variant="secondary" className="p-2">
-                              <Eye size={16} />
+                            <Button variant="secondary" className="p-1.5 sm:p-2">
+                              <Eye size={14} className="sm:w-4 sm:h-4" />
                             </Button>
                           </Link>
                           <Link href={`/members/${member._id}/edit`}>
-                            <Button variant="secondary" className="p-2">
-                              <Edit size={16} />
+                            <Button variant="secondary" className="p-1.5 sm:p-2">
+                              <Edit size={14} className="sm:w-4 sm:h-4" />
                             </Button>
                           </Link>
                           <Button
                             variant="danger"
-                            className="p-2"
+                            className="p-1.5 sm:p-2"
                             onClick={() => handleDelete(member._id)}
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} className="sm:w-4 sm:h-4" />
                           </Button>
                         </div>
                       </td>

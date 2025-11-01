@@ -25,7 +25,9 @@ export default function AttendancePage() {
 
   const fetchAttendances = async () => {
     try {
-      const res = await fetch('/api/attendance');
+      const res = await fetch('/api/attendance', {
+        credentials: 'include',
+      });
       const data = await res.json();
       setAttendances(data.attendances || []);
     } catch (error) {
@@ -39,12 +41,22 @@ export default function AttendancePage() {
     if (!confirm('Are you sure you want to delete this attendance record?')) return;
 
     try {
-      const res = await fetch(`/api/attendance/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/attendance/${id}`, { 
+        method: 'DELETE',
+        credentials: 'include',
+      });
       if (res.ok) {
+        // Update UI immediately
+        setAttendances(attendances.filter(a => a._id !== id));
+        setToast({ message: 'Attendance record deleted successfully', type: 'success', isVisible: true });
+        // Refresh to ensure consistency
         fetchAttendances();
+      } else {
+        setToast({ message: 'Failed to delete attendance record', type: 'error', isVisible: true });
       }
     } catch (error) {
       console.error('Failed to delete attendance:', error);
+      setToast({ message: 'Failed to delete attendance record', type: 'error', isVisible: true });
     }
   };
 
@@ -90,21 +102,22 @@ export default function AttendancePage() {
           onClose={() => setToast({ ...toast, isVisible: false })}
         />
 
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-navy">Attendance Records</h1>
-          <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <h1 className="text-2xl lg:text-3xl font-bold text-navy">Attendance Records</h1>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             {attendances.length > 0 && (
               <Button
                 variant="gold"
                 onClick={handleExportCSV}
-                className="flex items-center gap-2"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 <Download size={20} />
-                Export CSV
+                <span className="hidden sm:inline">Export CSV</span>
+                <span className="sm:hidden">Export</span>
               </Button>
             )}
-            <Link href="/attendance/new">
-              <Button variant="primary" className="flex items-center gap-2">
+            <Link href="/attendance/new" className="w-full sm:w-auto">
+              <Button variant="primary" className="flex items-center justify-center gap-2 w-full sm:w-auto">
                 <Plus size={20} />
                 Record Attendance
               </Button>
@@ -121,43 +134,48 @@ export default function AttendancePage() {
               </Link>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <table className="w-full min-w-[600px]">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Event Name</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Date</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Total Present</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Notes</th>
-                    <th className="text-right py-3 px-4 font-semibold text-gray-700">Actions</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Event Name</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Date</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Total Present</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm hidden md:table-cell">Notes</th>
+                    <th className="text-right py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {attendances.map((attendance) => (
                     <tr key={attendance._id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 font-medium">{attendance.eventName}</td>
-                      <td className="py-3 px-4 text-gray-600">
+                      <td className="py-3 px-2 sm:px-4 font-medium text-sm">
+                        <div className="flex flex-col">
+                          <span>{attendance.eventName}</span>
+                          <span className="text-xs text-gray-500 md:hidden">{attendance.notes || 'No notes'}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-2 sm:px-4 text-gray-600 text-sm">
                         {format(new Date(attendance.date), 'MMM dd, yyyy')}
                       </td>
-                      <td className="py-3 px-4">
-                        <span className="font-semibold text-navy">{attendance.totalPresent}</span>
+                      <td className="py-3 px-2 sm:px-4">
+                        <span className="font-semibold text-navy text-sm">{attendance.totalPresent}</span>
                       </td>
-                      <td className="py-3 px-4 text-gray-600">
+                      <td className="py-3 px-2 sm:px-4 text-gray-600 text-sm hidden md:table-cell">
                         {attendance.notes || 'N/A'}
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="py-3 px-2 sm:px-4">
+                        <div className="flex items-center justify-end gap-1 sm:gap-2">
                           <Link href={`/attendance/${attendance._id}/edit`}>
-                            <Button variant="secondary" className="p-2">
-                              <Edit size={16} />
+                            <Button variant="secondary" className="p-1.5 sm:p-2">
+                              <Edit size={14} className="sm:w-4 sm:h-4" />
                             </Button>
                           </Link>
                           <Button
                             variant="danger"
-                            className="p-2"
+                            className="p-1.5 sm:p-2"
                             onClick={() => handleDelete(attendance._id)}
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} className="sm:w-4 sm:h-4" />
                           </Button>
                         </div>
                       </td>

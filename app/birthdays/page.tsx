@@ -27,7 +27,9 @@ export default function BirthdaysPage() {
 
   const fetchMembers = async () => {
     try {
-      const res = await fetch('/api/members');
+      const res = await fetch('/api/members', {
+        credentials: 'include',
+      });
       const data = await res.json();
       setMembers(data.members || []);
     } catch (error) {
@@ -71,6 +73,7 @@ export default function BirthdaysPage() {
           type: 'birthday',
           memberId,
         }),
+        credentials: 'include',
       });
 
       if (res.ok) {
@@ -139,31 +142,36 @@ export default function BirthdaysPage() {
           onClose={() => setToast({ ...toast, isVisible: false })}
         />
 
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-navy">Birthday Tracker</h1>
-          <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <h1 className="text-2xl lg:text-3xl font-bold text-navy">Birthday Tracker</h1>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             {upcomingBirthdays.length > 0 && (
               <Button
                 variant="gold"
                 onClick={handleExportCSV}
-                className="flex items-center gap-2"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 <Download size={20} />
-                Export CSV
+                <span className="hidden sm:inline">Export CSV</span>
+                <span className="sm:hidden">Export</span>
               </Button>
             )}
-            <Button
-              variant={filter === 'month' ? 'primary' : 'secondary'}
-              onClick={() => setFilter('month')}
-            >
-              This Month
-            </Button>
-            <Button
-              variant={filter === 'week' ? 'primary' : 'secondary'}
-              onClick={() => setFilter('week')}
-            >
-              Next 7 Days
-            </Button>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button
+                variant={filter === 'month' ? 'primary' : 'secondary'}
+                onClick={() => setFilter('month')}
+                className="flex-1 sm:flex-none"
+              >
+                This Month
+              </Button>
+              <Button
+                variant={filter === 'week' ? 'primary' : 'secondary'}
+                onClick={() => setFilter('week')}
+                className="flex-1 sm:flex-none"
+              >
+                Next 7 Days
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -176,7 +184,7 @@ export default function BirthdaysPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
               {upcomingBirthdays.map((member) => {
                 const dob = new Date(member.dateOfBirth);
                 const today = new Date();

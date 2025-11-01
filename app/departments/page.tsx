@@ -19,7 +19,9 @@ export default function DepartmentsPage() {
 
   const fetchDepartments = async () => {
     try {
-      const res = await fetch('/api/departments');
+      const res = await fetch('/api/departments', {
+        credentials: 'include',
+      });
       const data = await res.json();
       setDepartments(data.departments || []);
     } catch (error) {
@@ -38,8 +40,12 @@ export default function DepartmentsPage() {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData),
+          credentials: 'include',
         });
         if (res.ok) {
+          const data = await res.json();
+          // Update UI immediately
+          setDepartments(departments.map(d => d._id === editingId ? data.department : d));
           fetchDepartments();
           resetForm();
         }
@@ -48,8 +54,12 @@ export default function DepartmentsPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData),
+          credentials: 'include',
         });
         if (res.ok) {
+          const data = await res.json();
+          // Update UI immediately
+          setDepartments([...departments, data.department]);
           fetchDepartments();
           resetForm();
         }
@@ -69,8 +79,14 @@ export default function DepartmentsPage() {
     if (!confirm('Are you sure you want to delete this department?')) return;
 
     try {
-      const res = await fetch(`/api/departments/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/departments/${id}`, { 
+        method: 'DELETE',
+        credentials: 'include',
+      });
       if (res.ok) {
+        // Update UI immediately
+        setDepartments(departments.filter(d => d._id !== id));
+        // Refresh to ensure consistency
         fetchDepartments();
       }
     } catch (error) {
@@ -97,12 +113,12 @@ export default function DepartmentsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-navy">Departments</h1>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <h1 className="text-2xl lg:text-3xl font-bold text-navy">Departments</h1>
           <Button
             variant="primary"
             onClick={() => setShowForm(!showForm)}
-            className="flex items-center gap-2"
+            className="flex items-center justify-center gap-2 w-full sm:w-auto"
           >
             <Plus size={20} />
             {showForm ? 'Cancel' : 'Add Department'}

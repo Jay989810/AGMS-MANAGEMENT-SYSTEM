@@ -8,6 +8,7 @@ import Navbar from './Navbar';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/me', {
@@ -37,11 +38,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex-1 flex flex-col">
-        <Navbar />
-        <main className="flex-1 p-6 bg-gray-50">{children}</main>
+    <div className="flex min-h-screen bg-gray-50">
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div className="flex-1 flex flex-col lg:ml-0 min-w-0">
+        <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+        <main className="flex-1 p-4 lg:p-6 bg-gray-50 overflow-x-hidden">{children}</main>
       </div>
     </div>
   );

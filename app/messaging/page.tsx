@@ -28,6 +28,7 @@ export default function MessagingPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
+        credentials: 'include',
       });
 
       const data = await res.json();
@@ -52,10 +53,10 @@ export default function MessagingPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="max-w-3xl mx-auto space-y-4 lg:space-y-6">
         <div className="flex items-center gap-3">
-          <Mail className="text-navy" size={32} />
-          <h1 className="text-3xl font-bold text-navy">Messaging</h1>
+          <Mail className="text-navy" size={24} className="lg:w-8 lg:h-8" />
+          <h1 className="text-2xl lg:text-3xl font-bold text-navy">Messaging</h1>
         </div>
 
         <Card>

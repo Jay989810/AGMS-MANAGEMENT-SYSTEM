@@ -57,7 +57,9 @@ export default function BibleStudyPage() {
 
   const fetchReports = async () => {
     try {
-      const res = await fetch('/api/biblestudy');
+      const res = await fetch('/api/biblestudy', {
+        credentials: 'include',
+      });
       const data = await res.json();
       setReports(data.reports || []);
     } catch (error) {
@@ -83,6 +85,7 @@ export default function BibleStudyPage() {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
+        credentials: 'include',
       });
 
       if (!res.ok) {
@@ -90,8 +93,18 @@ export default function BibleStudyPage() {
         throw new Error(error.error || 'Failed to save report');
       }
 
-      showToast(editingId ? 'Report updated successfully!' : 'Report created successfully!', 'success');
+      const data = await res.json();
+      // Update UI immediately
+      if (editingId) {
+        setReports(reports.map(r => r._id === editingId ? data.report : r));
+        showToast('Report updated successfully!', 'success');
+      } else {
+        setReports([data.report, ...reports]);
+        showToast('Report created successfully!', 'success');
+      }
       resetForm();
+      setShowModal(false);
+      // Refresh to ensure consistency
       fetchReports();
     } catch (error: any) {
       showToast(error.message || 'Failed to save report. Please try again.', 'error');
@@ -127,9 +140,15 @@ export default function BibleStudyPage() {
     }
 
     try {
-      const res = await fetch(`/api/biblestudy/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/biblestudy/${id}`, { 
+        method: 'DELETE',
+        credentials: 'include',
+      });
       if (res.ok) {
+        // Update UI immediately
+        setReports(reports.filter(r => r._id !== id));
         showToast('Report deleted successfully!', 'success');
+        // Refresh to ensure consistency
         fetchReports();
       } else {
         showToast('Failed to delete report', 'error');
@@ -223,23 +242,24 @@ export default function BibleStudyPage() {
         />
 
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-navy">Bible Study & Mid-Week Reports</h1>
-          <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <h1 className="text-2xl lg:text-3xl font-bold text-navy">Bible Study & Mid-Week Reports</h1>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             {reports.length > 0 && (
               <Button
                 variant="gold"
                 onClick={handleExportCSV}
-                className="flex items-center gap-2"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 <Download size={20} />
-                Export CSV
+                <span className="hidden sm:inline">Export CSV</span>
+                <span className="sm:hidden">Export</span>
               </Button>
             )}
             <Button
               variant="primary"
               onClick={() => setShowModal(true)}
-              className="flex items-center gap-2"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto"
             >
               <Plus size={20} />
               Add New Report
@@ -265,28 +285,42 @@ export default function BibleStudyPage() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <table className="w-full min-w-[700px]">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Date</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Service Type</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Topic</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Teacher</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Attendance</th>
-                    <th className="text-right py-3 px-4 font-semibold text-gray-700">Actions</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Date</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm hidden md:table-cell">Service Type</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Topic</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm hidden lg:table-cell">Teacher</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Attendance</th>
+                    <th className="text-right py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {reports.map((report) => (
                     <tr key={report._id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <Calendar size={16} />
-                          <span>{format(new Date(report.date), 'MMM dd, yyyy')}</span>
+                      <td className="py-3 px-2 sm:px-4">
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-2 text-gray-600 text-sm">
+                            <Calendar size={14} className="hidden sm:inline" />
+                            <span>{format(new Date(report.date), 'MMM dd, yyyy')}</span>
+                          </div>
+                          <div className="md:hidden mt-1">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                report.serviceType === 'Bible Study'
+                                  ? 'bg-navy text-white'
+                                  : 'bg-gold text-navy'
+                              }`}
+                            >
+                              {report.serviceType}
+                            </span>
+                            <span className="ml-2 text-xs text-gray-500 lg:hidden">{report.teacher}</span>
+                          </div>
                         </div>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-2 sm:px-4 hidden md:table-cell">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
                             report.serviceType === 'Bible Study'
@@ -297,33 +331,33 @@ export default function BibleStudyPage() {
                           {report.serviceType}
                         </span>
                       </td>
-                      <td className="py-3 px-4 font-medium text-navy">{report.topic}</td>
-                      <td className="py-3 px-4 text-gray-600">{report.teacher}</td>
-                      <td className="py-3 px-4">
-                        <span className="font-semibold text-navy">{report.attendance}</span>
+                      <td className="py-3 px-2 sm:px-4 font-medium text-navy text-sm">{report.topic}</td>
+                      <td className="py-3 px-2 sm:px-4 text-gray-600 text-sm hidden lg:table-cell">{report.teacher}</td>
+                      <td className="py-3 px-2 sm:px-4">
+                        <span className="font-semibold text-navy text-sm">{report.attendance}</span>
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="py-3 px-2 sm:px-4">
+                        <div className="flex items-center justify-end gap-1 sm:gap-2">
                           <Button
                             variant="secondary"
-                            className="p-2"
+                            className="p-1.5 sm:p-2"
                             onClick={() => handleViewDetails(report)}
                           >
-                            <Eye size={16} />
+                            <Eye size={14} className="sm:w-4 sm:h-4" />
                           </Button>
                           <Button
                             variant="secondary"
-                            className="p-2"
+                            className="p-1.5 sm:p-2"
                             onClick={() => handleEdit(report)}
                           >
-                            <Edit size={16} />
+                            <Edit size={14} className="sm:w-4 sm:h-4" />
                           </Button>
                           <Button
                             variant="danger"
-                            className="p-2"
+                            className="p-1.5 sm:p-2"
                             onClick={() => handleDelete(report._id)}
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} className="sm:w-4 sm:h-4" />
                           </Button>
                         </div>
                       </td>

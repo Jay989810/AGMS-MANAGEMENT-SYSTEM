@@ -20,7 +20,9 @@ export default function DashboardPage() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('/api/stats');
+      const res = await fetch('/api/stats', {
+        credentials: 'include',
+      });
       const data = await res.json();
       setStats(data);
     } catch (error) {
@@ -32,7 +34,9 @@ export default function DashboardPage() {
 
   const fetchFinanceSummary = async () => {
     try {
-      const res = await fetch('/api/finance/summary');
+      const res = await fetch('/api/finance/summary', {
+        credentials: 'include',
+      });
       const data = await res.json();
       setFinanceSummary(data);
     } catch (error) {
@@ -59,18 +63,18 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 lg:space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-navy">Dashboard</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold text-navy">Dashboard</h1>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
           <Card className="bg-gradient-to-br from-navy to-navy-dark text-white">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-300 text-sm">Total Members</p>
-                <p className="text-3xl font-bold mt-2">{stats?.totalMembers || 0}</p>
+                <p className="text-2xl lg:text-3xl font-bold mt-2">{stats?.totalMembers || 0}</p>
               </div>
               <Users size={40} className="text-gold" />
             </div>
@@ -80,7 +84,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-300 text-sm">Departments</p>
-                <p className="text-3xl font-bold mt-2">{stats?.totalDepartments || 0}</p>
+                <p className="text-2xl lg:text-3xl font-bold mt-2">{stats?.totalDepartments || 0}</p>
               </div>
               <Building2 size={40} className="text-gold" />
             </div>
@@ -90,7 +94,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-300 text-sm">Attendance Records</p>
-                <p className="text-3xl font-bold mt-2">{stats?.totalAttendance || 0}</p>
+                <p className="text-2xl lg:text-3xl font-bold mt-2">{stats?.totalAttendance || 0}</p>
               </div>
               <Calendar size={40} className="text-gold" />
             </div>
@@ -100,7 +104,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-navy text-sm font-medium">Upcoming Birthdays</p>
-                <p className="text-3xl font-bold mt-2">{stats?.upcomingBirthdays?.length || 0}</p>
+                <p className="text-2xl lg:text-3xl font-bold mt-2">{stats?.upcomingBirthdays?.length || 0}</p>
               </div>
               <Gift size={40} className="text-navy" />
             </div>
@@ -110,7 +114,7 @@ export default function DashboardPage() {
         {/* Financial Summary Widget */}
         {financeSummary && (
           <Card title="Financial Summary" className="border-2 border-gold">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
               <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <DollarSign size={24} className="text-green-700" />
@@ -151,7 +155,7 @@ export default function DashboardPage() {
 
         {/* Quick Actions */}
         <Card title="Quick Actions">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
             <Link href="/members/new">
               <Button variant="primary" className="w-full flex items-center justify-center gap-2">
                 <Plus size={20} />
