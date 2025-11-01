@@ -23,11 +23,6 @@ const nextConfig = {
   // Optimize production builds
   productionBrowserSourceMaps: false,
   
-  // Experimental features for performance
-  experimental: {
-    optimizeCss: true,
-  },
-  
   // Headers for caching and performance
   async headers() {
     return [

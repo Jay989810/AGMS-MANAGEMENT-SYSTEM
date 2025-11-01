@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { put } from '@vercel/blob';
 
+// Mark route as dynamic since it uses authentication and file upload
+export const dynamic = 'force-dynamic';
+
 async function handler(req: NextRequest, { user }: { user: any }) {
   try {
     const formData = await req.formData();

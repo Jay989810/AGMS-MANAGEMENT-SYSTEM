@@ -3,6 +3,9 @@ import { requireAuth } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import Financial from '@/lib/models/Financial';
 
+// Mark route as dynamic since it uses authentication and database
+export const dynamic = 'force-dynamic';
+
 async function handler(req: NextRequest, { user }: { user: any }) {
   await connectDB();
 

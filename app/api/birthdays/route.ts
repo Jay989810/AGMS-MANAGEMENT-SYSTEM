@@ -4,6 +4,9 @@ import connectDB from '@/lib/db';
 import Member from '@/lib/models/Member';
 import { addDays, format } from 'date-fns';
 
+// Mark route as dynamic since it uses authentication and database
+export const dynamic = 'force-dynamic';
+
 async function handler(req: NextRequest, { user }: { user: any }) {
   await connectDB();
 

@@ -4,6 +4,9 @@ import connectDB from '@/lib/db';
 import User from '@/lib/models/User';
 import { generateToken } from '@/lib/auth';
 
+// Mark route as dynamic since it uses cookies
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     await connectDB();

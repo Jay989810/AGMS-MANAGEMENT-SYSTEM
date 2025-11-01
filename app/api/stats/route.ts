@@ -6,6 +6,9 @@ import Attendance from '@/lib/models/Attendance';
 import Department from '@/lib/models/Department';
 import { startOfMonth, endOfMonth, addDays, format } from 'date-fns';
 
+// Mark route as dynamic since it uses authentication and database
+export const dynamic = 'force-dynamic';
+
 async function handler(req: NextRequest, { user }: { user: any }) {
   await connectDB();
 

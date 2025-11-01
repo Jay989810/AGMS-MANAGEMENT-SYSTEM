@@ -3,6 +3,9 @@ import { getAuthUser } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import User from '@/lib/models/User';
 
+// Mark route as dynamic since it uses cookies
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request);

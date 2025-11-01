@@ -4,6 +4,9 @@ import connectDB from '@/lib/db';
 import User from '@/lib/models/User';
 import bcrypt from 'bcryptjs';
 
+// Mark route as dynamic since it uses authentication and database
+export const dynamic = 'force-dynamic';
+
 async function handler(req: NextRequest, { user }: { user: any }) {
   await connectDB();
 
