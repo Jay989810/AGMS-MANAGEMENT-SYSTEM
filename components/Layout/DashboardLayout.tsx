@@ -10,7 +10,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/auth/me')
+    fetch('/api/auth/me', {
+      credentials: 'include', // Important for cookies to work
+    })
       .then((res) => {
         if (!res.ok) {
           router.push('/login');

@@ -7,12 +7,17 @@ export default function Navbar() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    fetch('/api/auth/me')
+    fetch('/api/auth/me', {
+      credentials: 'include', // Important for cookies to work
+    })
       .then((res) => res.json())
       .then((data) => {
         if (data.user) {
           setUser(data.user);
         }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch user:', err);
       });
   }, []);
 
