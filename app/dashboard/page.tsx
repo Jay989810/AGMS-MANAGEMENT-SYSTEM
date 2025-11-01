@@ -4,16 +4,18 @@ import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import { Users, Building2, Calendar, Gift, Mail, Plus } from 'lucide-react';
+import { Users, Building2, Calendar, Gift, Mail, Plus, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
+  const [financeSummary, setFinanceSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchStats();
+    fetchFinanceSummary();
   }, []);
 
   const fetchStats = async () => {
@@ -26,6 +28,23 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchFinanceSummary = async () => {
+    try {
+      const res = await fetch('/api/finance/summary');
+      const data = await res.json();
+      setFinanceSummary(data);
+    } catch (error) {
+      console.error('Failed to fetch finance summary:', error);
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
   };
 
   if (loading) {
@@ -87,6 +106,48 @@ export default function DashboardPage() {
             </div>
           </Card>
         </div>
+
+        {/* Financial Summary Widget */}
+        {financeSummary && (
+          <Card title="Financial Summary" className="border-2 border-gold">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <DollarSign size={24} className="text-green-700" />
+                  <p className="text-green-700 text-sm font-medium">Total Income</p>
+                </div>
+                <p className="text-2xl font-bold text-green-800">
+                  {formatCurrency(financeSummary.totalIncome)}
+                </p>
+              </div>
+
+              <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <DollarSign size={24} className="text-red-700" />
+                  <p className="text-red-700 text-sm font-medium">Total Expense</p>
+                </div>
+                <p className="text-2xl font-bold text-red-800">
+                  {formatCurrency(financeSummary.totalExpense)}
+                </p>
+              </div>
+
+              <div className="text-center p-4 bg-gold/20 rounded-lg border-2 border-gold">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span className="text-2xl">💰</span>
+                  <p className="text-navy text-sm font-medium">Current Balance</p>
+                </div>
+                <p className={`text-2xl font-bold ${financeSummary.balance >= 0 ? 'text-navy' : 'text-red-700'}`}>
+                  {formatCurrency(financeSummary.balance)}
+                </p>
+                <Link href="/dashboard/finance">
+                  <Button variant="gold" className="mt-3 text-sm">
+                    View Details
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Quick Actions */}
         <Card title="Quick Actions">

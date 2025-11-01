@@ -9,6 +9,9 @@ import {
   Gift, 
   Mail, 
   Building2,
+  BookOpen,
+  DollarSign,
+  GraduationCap,
   LogOut 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -20,6 +23,9 @@ const menuItems = [
   { href: '/departments', label: 'Departments', icon: Building2 },
   { href: '/birthdays', label: 'Birthdays', icon: Gift },
   { href: '/messaging', label: 'Messaging', icon: Mail },
+  { href: '/dashboard/sermons', label: 'Sermons', icon: BookOpen },
+  { href: '/dashboard/finance', label: 'Finance', icon: DollarSign, emoji: '💰' },
+  { href: '/dashboard/biblestudy', label: 'Bible Study', icon: GraduationCap, emoji: '📚' },
 ];
 
 export default function Sidebar() {
@@ -41,6 +47,7 @@ export default function Sidebar() {
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
+          const isFinance = item.href === '/dashboard/finance';
           
           return (
             <Link
@@ -50,10 +57,16 @@ export default function Sidebar() {
                 'flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-colors',
                 isActive
                   ? 'bg-gold text-navy font-semibold'
+                  : isFinance
+                  ? 'text-gray-300 hover:bg-gold/20 hover:text-gold'
                   : 'text-gray-300 hover:bg-navy-light hover:text-white'
               )}
             >
-              <Icon size={20} />
+              {item.emoji ? (
+                <span className="text-xl">{item.emoji}</span>
+              ) : (
+                <Icon size={20} />
+              )}
               <span>{item.label}</span>
             </Link>
           );

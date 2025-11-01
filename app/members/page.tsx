@@ -5,9 +5,12 @@ import DashboardLayout from '@/components/Layout/DashboardLayout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { Plus, Search, Edit, Trash2, Eye, Upload } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, Upload, Download } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { exportToCSV } from '@/lib/exportToCSV';
+import Toast from '@/components/ui/Toast';
+import { format } from 'date-fns';
 
 export default function MembersPage() {
   const [members, setMembers] = useState<any[]>([]);
@@ -15,6 +18,11 @@ export default function MembersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [ministryFilter, setMinistryFilter] = useState('');
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; isVisible: boolean }>({
+    message: '',
+    type: 'info',
+    isVisible: false,
+  });
 
   useEffect(() => {
     fetchMembers();
@@ -60,6 +68,30 @@ export default function MembersPage() {
     }
   };
 
+  const handleExportCSV = () => {
+    if (members.length === 0) {
+      setToast({ message: 'No records available for export', type: 'error', isVisible: true });
+      return;
+    }
+
+    try {
+      const exportData = members.map((member) => ({
+        Name: member.fullName,
+        Gender: member.gender,
+        'Date of Birth': format(new Date(member.dateOfBirth), 'yyyy-MM-dd'),
+        Phone: member.phone,
+        Email: member.email || '',
+        Department: member.ministry || 'N/A',
+        Status: member.membershipStatus,
+      }));
+
+      exportToCSV(exportData, 'members');
+      setToast({ message: 'CSV file downloaded successfully', type: 'success', isVisible: true });
+    } catch (error: any) {
+      setToast({ message: error.message || 'Failed to export CSV', type: 'error', isVisible: true });
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -73,14 +105,34 @@ export default function MembersPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Toast Notification */}
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={toast.isVisible}
+          onClose={() => setToast({ ...toast, isVisible: false })}
+        />
+
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold text-navy">Members</h1>
-          <Link href="/members/new">
-            <Button variant="primary" className="flex items-center gap-2">
-              <Plus size={20} />
-              Add Member
-            </Button>
-          </Link>
+          <div className="flex gap-2">
+            {members.length > 0 && (
+              <Button
+                variant="gold"
+                onClick={handleExportCSV}
+                className="flex items-center gap-2"
+              >
+                <Download size={20} />
+                Export CSV
+              </Button>
+            )}
+            <Link href="/members/new">
+              <Button variant="primary" className="flex items-center gap-2">
+                <Plus size={20} />
+                Add Member
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Filters */}

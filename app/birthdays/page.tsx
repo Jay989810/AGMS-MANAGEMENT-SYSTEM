@@ -4,15 +4,22 @@ import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import { Gift, Mail } from 'lucide-react';
+import { Gift, Mail, Download } from 'lucide-react';
 import { format, addDays, startOfMonth, endOfMonth } from 'date-fns';
 import Image from 'next/image';
+import { exportToCSV } from '@/lib/exportToCSV';
+import Toast from '@/components/ui/Toast';
 
 export default function BirthdaysPage() {
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'month' | 'week'>('month');
   const [sending, setSending] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; isVisible: boolean }>({
+    message: '',
+    type: 'info',
+    isVisible: false,
+  });
 
   useEffect(() => {
     fetchMembers();
@@ -92,12 +99,59 @@ export default function BirthdaysPage() {
 
   const upcomingBirthdays = getUpcomingBirthdays();
 
+  const handleExportCSV = () => {
+    if (upcomingBirthdays.length === 0) {
+      setToast({ message: 'No records available for export', type: 'error', isVisible: true });
+      return;
+    }
+
+    try {
+      const today = new Date();
+      const exportData = upcomingBirthdays.map((member) => {
+        const dob = new Date(member.dateOfBirth);
+        const age = today.getFullYear() - dob.getFullYear();
+        const monthDiff = today.getMonth() - dob.getMonth();
+        const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate()) ? age - 1 : age;
+
+        return {
+          Name: member.fullName,
+          'Date of Birth': format(dob, 'yyyy-MM-dd'),
+          Department: member.ministry || 'N/A',
+          Age: actualAge,
+        };
+      });
+
+      exportToCSV(exportData, 'birthdays');
+      setToast({ message: 'CSV file downloaded successfully', type: 'success', isVisible: true });
+    } catch (error: any) {
+      setToast({ message: error.message || 'Failed to export CSV', type: 'error', isVisible: true });
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Toast Notification */}
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={toast.isVisible}
+          onClose={() => setToast({ ...toast, isVisible: false })}
+        />
+
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold text-navy">Birthday Tracker</h1>
           <div className="flex gap-2">
+            {upcomingBirthdays.length > 0 && (
+              <Button
+                variant="gold"
+                onClick={handleExportCSV}
+                className="flex items-center gap-2"
+              >
+                <Download size={20} />
+                Export CSV
+              </Button>
+            )}
             <Button
               variant={filter === 'month' ? 'primary' : 'secondary'}
               onClick={() => setFilter('month')}

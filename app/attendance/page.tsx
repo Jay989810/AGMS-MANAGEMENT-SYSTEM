@@ -4,13 +4,20 @@ import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Download } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { exportToCSV } from '@/lib/exportToCSV';
+import Toast from '@/components/ui/Toast';
 
 export default function AttendancePage() {
   const [attendances, setAttendances] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; isVisible: boolean }>({
+    message: '',
+    type: 'info',
+    isVisible: false,
+  });
 
   useEffect(() => {
     fetchAttendances();
@@ -41,6 +48,27 @@ export default function AttendancePage() {
     }
   };
 
+  const handleExportCSV = () => {
+    if (attendances.length === 0) {
+      setToast({ message: 'No records available for export', type: 'error', isVisible: true });
+      return;
+    }
+
+    try {
+      const exportData = attendances.map((attendance) => ({
+        Date: format(new Date(attendance.date), 'yyyy-MM-dd'),
+        Event: attendance.eventName,
+        'Total Present': attendance.totalPresent,
+        Notes: attendance.notes || '',
+      }));
+
+      exportToCSV(exportData, 'attendance');
+      setToast({ message: 'CSV file downloaded successfully', type: 'success', isVisible: true });
+    } catch (error: any) {
+      setToast({ message: error.message || 'Failed to export CSV', type: 'error', isVisible: true });
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -54,14 +82,34 @@ export default function AttendancePage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Toast Notification */}
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={toast.isVisible}
+          onClose={() => setToast({ ...toast, isVisible: false })}
+        />
+
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold text-navy">Attendance Records</h1>
-          <Link href="/attendance/new">
-            <Button variant="primary" className="flex items-center gap-2">
-              <Plus size={20} />
-              Record Attendance
-            </Button>
-          </Link>
+          <div className="flex gap-2">
+            {attendances.length > 0 && (
+              <Button
+                variant="gold"
+                onClick={handleExportCSV}
+                className="flex items-center gap-2"
+              >
+                <Download size={20} />
+                Export CSV
+              </Button>
+            )}
+            <Link href="/attendance/new">
+              <Button variant="primary" className="flex items-center gap-2">
+                <Plus size={20} />
+                Record Attendance
+              </Button>
+            </Link>
+          </div>
         </div>
 
         <Card>

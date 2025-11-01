@@ -1,3 +1,24 @@
+// Load environment variables from .env.local FIRST
+// This must be done using require() to ensure synchronous execution
+const dotenv = require('dotenv');
+const path = require('path');
+
+// Load .env.local file
+const envResult = dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+
+if (envResult.error) {
+  console.error('Error loading .env.local:', envResult.error);
+  process.exit(1);
+}
+
+// Verify MONGODB_URI is loaded
+if (!process.env.MONGODB_URI) {
+  console.error('ERROR: MONGODB_URI not found in .env.local');
+  console.error('Please make sure .env.local exists and contains MONGODB_URI');
+  process.exit(1);
+}
+
+// Now we can safely import modules that depend on environment variables
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import connectDB from '../lib/db';
@@ -40,5 +61,3 @@ async function seed() {
 }
 
 seed();
-
-
