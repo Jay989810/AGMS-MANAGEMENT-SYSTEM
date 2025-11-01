@@ -1,0 +1,43 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth';
+import connectDB from '@/lib/db';
+import Member from '@/lib/models/Member';
+
+async function handler(req: NextRequest, { user }: { user: any }) {
+  await connectDB();
+
+  if (req.method === 'GET') {
+    const { searchParams } = new URL(req.url);
+    const search = searchParams.get('search') || '';
+    const ministry = searchParams.get('ministry') || '';
+
+    const query: any = {};
+    if (search) {
+      query.$or = [
+        { fullName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } },
+      ];
+    }
+    if (ministry) {
+      query.ministry = ministry;
+    }
+
+    const members = await Member.find(query).sort({ createdAt: -1 });
+    return NextResponse.json({ members });
+  }
+
+  if (req.method === 'POST') {
+    const data = await req.json();
+    const member = new Member(data);
+    await member.save();
+    return NextResponse.json({ member }, { status: 201 });
+  }
+
+  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+}
+
+export const GET = requireAuth(handler);
+export const POST = requireAuth(handler);
+
+
