@@ -37,7 +37,11 @@ async function handler(req: NextRequest, { user }: { user: any }) {
       }
     }
 
-    const records = await Financial.find(query).sort({ date: -1 });
+    // Optimize: Limit results and use lean() for faster queries
+    const records = await Financial.find(query)
+      .sort({ date: -1 })
+      .limit(1000)
+      .lean();
     return NextResponse.json({ records });
   }
 

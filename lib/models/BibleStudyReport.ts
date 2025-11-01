@@ -59,6 +59,11 @@ const BibleStudyReportSchema: Schema = new Schema<IBibleStudyReport>(
   }
 );
 
+// Add indexes for better query performance
+BibleStudyReportSchema.index({ date: -1 });
+BibleStudyReportSchema.index({ serviceType: 1 });
+BibleStudyReportSchema.index({ date: -1, serviceType: 1 });
+
 const BibleStudyReport: Model<IBibleStudyReport> =
   mongoose.models.BibleStudyReport ||
   mongoose.model<IBibleStudyReport>('BibleStudyReport', BibleStudyReportSchema);

@@ -7,7 +7,12 @@ async function handler(req: NextRequest, { user }: { user: any }) {
   await connectDB();
 
   if (req.method === 'GET') {
-    const attendances = await Attendance.find().sort({ date: -1 }).limit(100);
+    // Optimize: Use lean() for faster queries and limit results
+    const attendances = await Attendance.find()
+      .select('eventName date totalPresent notes')
+      .sort({ date: -1 })
+      .limit(100)
+      .lean();
     return NextResponse.json({ attendances });
   }
 

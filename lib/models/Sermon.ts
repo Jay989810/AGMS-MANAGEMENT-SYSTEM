@@ -47,6 +47,10 @@ const SermonSchema: Schema = new Schema<ISermon>(
   }
 );
 
+// Add indexes for better query performance
+SermonSchema.index({ date: -1 });
+SermonSchema.index({ preacher: 1 });
+
 const Sermon: Model<ISermon> = mongoose.models.Sermon || mongoose.model<ISermon>('Sermon', SermonSchema);
 
 export default Sermon;

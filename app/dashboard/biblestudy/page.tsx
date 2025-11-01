@@ -12,18 +12,16 @@ import Toast from '@/components/ui/Toast';
 import { Plus, Edit, Trash2, Eye, Calendar, BookOpen, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { exportToCSV } from '@/lib/exportToCSV';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-} from 'recharts';
+import dynamic from 'next/dynamic';
+
+// Lazy load chart components for better performance
+const AttendanceChart = dynamic(
+  () => import('@/components/charts/AttendanceChart'),
+  { 
+    ssr: false,
+    loading: () => <div className="h-[300px] flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-navy"></div></div>
+  }
+);
 
 const serviceTypes = [
   { value: 'Bible Study', label: 'Bible Study' },
@@ -252,17 +250,7 @@ export default function BibleStudyPage() {
         {/* Attendance Chart */}
         {reports.length > 0 && (
           <Card title="Attendance Trends">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="Bible Study" fill="#001F3F" name="Bible Study" />
-                <Bar dataKey="Mid-Week Service" fill="#FFB703" name="Mid-Week Service" />
-              </BarChart>
-            </ResponsiveContainer>
+            <AttendanceChart data={chartData} />
           </Card>
         )}
 

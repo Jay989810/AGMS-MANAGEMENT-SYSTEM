@@ -42,6 +42,12 @@ const FinancialSchema: Schema = new Schema<IFinancial>(
   }
 );
 
+// Add indexes for better query performance
+FinancialSchema.index({ date: -1 });
+FinancialSchema.index({ type: 1 });
+FinancialSchema.index({ category: 1 });
+FinancialSchema.index({ date: -1, type: 1 });
+
 const Financial: Model<IFinancial> = mongoose.models.Financial || mongoose.model<IFinancial>('Financial', FinancialSchema);
 
 export default Financial;

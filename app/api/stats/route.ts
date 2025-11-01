@@ -20,7 +20,11 @@ async function handler(req: NextRequest, { user }: { user: any }) {
     const currentMonth = startOfMonth(today);
     const monthEnd = endOfMonth(today);
 
-    const members = await Member.find({});
+    // Optimize: Only fetch needed fields and use database filtering
+    const members = await Member.find({})
+      .select('dateOfBirth fullName _id')
+      .lean();
+    
     const upcomingBirthdays = members
       .filter((member) => {
         const dob = new Date(member.dateOfBirth);
@@ -34,11 +38,12 @@ async function handler(req: NextRequest, { user }: { user: any }) {
       }))
       .slice(0, 5);
 
-    // Recent attendance
+    // Recent attendance - Optimize with lean()
     const recentAttendance = await Attendance.find()
       .sort({ date: -1 })
       .limit(5)
-      .select('eventName date totalPresent');
+      .select('eventName date totalPresent')
+      .lean();
 
     return NextResponse.json({
       totalMembers,

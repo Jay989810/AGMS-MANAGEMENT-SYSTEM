@@ -61,6 +61,15 @@ const MemberSchema: Schema = new Schema<IMember>(
   }
 );
 
+// Add indexes for better query performance
+MemberSchema.index({ fullName: 1 });
+MemberSchema.index({ email: 1 });
+MemberSchema.index({ phone: 1 });
+MemberSchema.index({ ministry: 1 });
+MemberSchema.index({ membershipStatus: 1 });
+MemberSchema.index({ createdAt: -1 });
+MemberSchema.index({ dateOfBirth: 1 });
+
 const Member: Model<IMember> = mongoose.models.Member || mongoose.model<IMember>('Member', MemberSchema);
 
 export default Member;

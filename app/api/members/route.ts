@@ -23,7 +23,12 @@ async function handler(req: NextRequest, { user }: { user: any }) {
       query.ministry = ministry;
     }
 
-    const members = await Member.find(query).sort({ createdAt: -1 });
+    // Optimize: Limit results and select only needed fields
+    const members = await Member.find(query)
+      .select('fullName gender dateOfBirth phone email ministry membershipStatus profileImage createdAt')
+      .sort({ createdAt: -1 })
+      .limit(1000)
+      .lean();
     return NextResponse.json({ members });
   }
 

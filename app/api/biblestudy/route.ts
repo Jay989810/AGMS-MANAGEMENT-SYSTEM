@@ -7,8 +7,11 @@ async function handler(req: NextRequest, { user }: { user: any }) {
   await connectDB();
 
   if (req.method === 'GET') {
-    // Get all reports sorted by date (newest first)
-    const reports = await BibleStudyReport.find().sort({ date: -1 });
+    // Optimize: Limit results and use lean() for faster queries
+    const reports = await BibleStudyReport.find()
+      .sort({ date: -1 })
+      .limit(500)
+      .lean();
     return NextResponse.json({ reports });
   }
 

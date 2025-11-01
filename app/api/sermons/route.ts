@@ -7,8 +7,11 @@ async function handler(req: NextRequest, { user }: { user: any }) {
   await connectDB();
 
   if (req.method === 'GET') {
-    // Get all sermons sorted by date (newest first)
-    const sermons = await Sermon.find().sort({ date: -1 });
+    // Optimize: Limit results and use lean() for faster queries
+    const sermons = await Sermon.find()
+      .sort({ date: -1 })
+      .limit(500)
+      .lean();
     return NextResponse.json({ sermons });
   }
 

@@ -7,7 +7,10 @@ async function handler(req: NextRequest, { user }: { user: any }) {
   await connectDB();
 
   if (req.method === 'GET') {
-    const departments = await Department.find().sort({ name: 1 });
+    // Optimize: Use lean() for faster queries
+    const departments = await Department.find()
+      .sort({ name: 1 })
+      .lean();
     return NextResponse.json({ departments });
   }
 

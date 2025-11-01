@@ -35,6 +35,10 @@ const AttendanceSchema: Schema = new Schema<IAttendance>(
   }
 );
 
+// Add indexes for better query performance
+AttendanceSchema.index({ date: -1 });
+AttendanceSchema.index({ eventName: 1 });
+
 const Attendance: Model<IAttendance> = mongoose.models.Attendance || mongoose.model<IAttendance>('Attendance', AttendanceSchema);
 
 export default Attendance;

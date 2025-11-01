@@ -25,20 +25,42 @@ async function handler(req: NextRequest, { user }: { user: any }) {
       }
     }
 
-    // Calculate totals
-    const incomeRecords = await Financial.find({ ...query, type: 'Income' });
-    const expenseRecords = await Financial.find({ ...query, type: 'Expense' });
+    // Use aggregation for better performance
+    const [incomeResult, expenseResult] = await Promise.all([
+      Financial.aggregate([
+        { $match: { ...query, type: 'Income' } },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$amount' },
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+      Financial.aggregate([
+        { $match: { ...query, type: 'Expense' } },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$amount' },
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
 
-    const totalIncome = incomeRecords.reduce((sum, record) => sum + record.amount, 0);
-    const totalExpense = expenseRecords.reduce((sum, record) => sum + record.amount, 0);
+    const totalIncome = incomeResult[0]?.total || 0;
+    const totalExpense = expenseResult[0]?.total || 0;
+    const incomeCount = incomeResult[0]?.count || 0;
+    const expenseCount = expenseResult[0]?.count || 0;
     const balance = totalIncome - totalExpense;
 
     return NextResponse.json({
       totalIncome,
       totalExpense,
       balance,
-      incomeCount: incomeRecords.length,
-      expenseCount: expenseRecords.length,
+      incomeCount,
+      expenseCount,
     });
   }
 
