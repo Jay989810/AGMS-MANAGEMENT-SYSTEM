@@ -27,6 +27,7 @@ export default function MembersPage() {
   useEffect(() => {
     fetchMembers();
     fetchDepartments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, ministryFilter]);
 
   const fetchMembers = async () => {

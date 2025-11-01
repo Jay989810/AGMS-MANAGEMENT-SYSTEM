@@ -51,6 +51,7 @@ export default function FinancePage() {
   useEffect(() => {
     fetchRecords();
     fetchSummary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
   const fetchRecords = async () => {

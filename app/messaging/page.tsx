@@ -55,7 +55,7 @@ export default function MessagingPage() {
     <DashboardLayout>
       <div className="max-w-3xl mx-auto space-y-4 lg:space-y-6">
         <div className="flex items-center gap-3">
-          <Mail className="text-navy" size={24} className="lg:w-8 lg:h-8" />
+          <Mail className="text-navy" size={24} />
           <h1 className="text-2xl lg:text-3xl font-bold text-navy">Messaging</h1>
         </div>
 

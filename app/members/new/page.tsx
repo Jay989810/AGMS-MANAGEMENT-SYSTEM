@@ -125,6 +125,7 @@ export default function NewMemberPage() {
                 </label>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                   {imagePreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={imagePreview}
                       alt="Preview"

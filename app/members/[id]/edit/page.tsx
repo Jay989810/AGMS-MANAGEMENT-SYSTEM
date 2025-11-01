@@ -32,6 +32,7 @@ export default function EditMemberPage() {
     if (params.id) {
       fetchMember(params.id as string);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
   const fetchMember = async (id: string) => {
@@ -158,6 +159,7 @@ export default function EditMemberPage() {
                 </label>
                 <div className="flex items-center gap-4">
                   {imagePreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={imagePreview}
                       alt="Preview"
