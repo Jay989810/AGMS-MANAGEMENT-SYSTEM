@@ -50,6 +50,8 @@ export async function sendSMS(
  * Supports v3 API (Bearer tokens with named tokens and granular permissions) and v2 API
  * Documentation: https://www.bulksmsnigeria.com/api
  * Base URL: https://www.bulksmsnigeria.com/api
+ * 
+ * Note: Automatically falls back from v3 to v2 if v3 returns authentication errors (BSNG-1001, 401)
  */
 async function sendViaBulkSMSNigeria(
   messages: SMSMessage[],
@@ -96,14 +98,15 @@ async function sendViaBulkSMSNigeria(
   const message = messages[0].message;
   const senderId = config.senderId.substring(0, 11); // Max 11 characters
 
-  let apiVersion = 'v3'; // Default to v3 for Bearer tokens
+  let apiVersion = 'v2'; // Default to v2 - v3 may not be available yet
   let response: Response;
 
   try {
     // Try v3 API first (for Bearer tokens with named tokens and granular permissions)
     // v3 API endpoint: POST /api/v3/sms (similar structure to v2)
+    let v3Response: Response | null = null;
     try {
-      response = await fetch('https://www.bulksmsnigeria.com/api/v3/sms', {
+      v3Response = await fetch('https://www.bulksmsnigeria.com/api/v3/sms', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiToken}`,
@@ -117,33 +120,63 @@ async function sendViaBulkSMSNigeria(
         }),
       });
       
-      // Check if v3 endpoint exists or if there's an authentication error
-      if (response.status === 404) {
+      // Check if v3 endpoint exists
+      if (v3Response.status === 404) {
+        console.log('v3 API endpoint not found (404) - using v2 API');
         throw new Error('v3 endpoint not found');
       }
       
-      // If authentication error (401), log it but don't fallback immediately
-      // Let it proceed to check the response for more details
-      if (response.status === 401) {
-        console.warn('v3 API authentication failed, response:', response.status);
+      // Check for authentication errors before using v3
+      // Clone response to check body without consuming original
+      if (v3Response.status === 401) {
+        console.warn('v3 API returned 401 (authentication error) - falling back to v2 API');
+        throw new Error('v3 authentication failed');
       }
+      
+      // Read cloned response to check for BSNG-1001 error code
+      const clonedResponse = v3Response.clone();
+      const responseText = await clonedResponse.text();
+      let errorData: any = null;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch {
+        // Not JSON - might be successful, continue
+      }
+      
+      const errorCode = errorData?.code || '';
+      const errorStatus = errorData?.status || '';
+      
+      // Check for BSNG-1001 or other authentication error codes
+      if (errorCode === 'BSNG-1001' || (errorCode.startsWith('BSNG-1') && errorStatus === 'error')) {
+        console.warn(`v3 API authentication failed with ${errorCode} - falling back to v2 API`);
+        throw new Error('v3 authentication failed');
+      }
+      
+      // v3 appears to work (no auth errors), use original response
+      apiVersion = 'v3';
+      response = v3Response;
     } catch (v3Error: any) {
-      // If v3 fails due to network or 404, try v2
-      console.log('v3 API not available, trying v2...', v3Error.message);
-      apiVersion = 'v2';
-      response = await fetch('https://www.bulksmsnigeria.com/api/v2/sms', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiToken}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-          from: senderId,
-          to: recipients,
-          body: message,
-        }),
-      });
+      // If v3 fails due to network, 404, or authentication error, try v2
+      if (v3Error.message === 'v3 endpoint not found' || v3Error.message === 'v3 authentication failed') {
+        console.log('Using v2 API (v3 not available or authentication failed)...');
+        apiVersion = 'v2';
+        response = await fetch('https://www.bulksmsnigeria.com/api/v2/sms', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiToken}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            from: senderId,
+            to: recipients,
+            body: message,
+          }),
+        });
+      } else {
+        // If it's a different error (like network error), re-throw it
+        throw v3Error;
+      }
     }
 
     let data: any;
@@ -226,7 +259,7 @@ async function sendViaBulkSMSNigeria(
         // Try v3 first, then v2 for individual sends
         let individualResponse: Response;
         try {
-          individualResponse = await fetch('https://www.bulksmsnigeria.com/api/v3/sms', {
+          const v3IndividualResponse = await fetch('https://www.bulksmsnigeria.com/api/v3/sms', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${apiToken}`,
@@ -240,10 +273,32 @@ async function sendViaBulkSMSNigeria(
             }),
           });
           
-          if (individualResponse.status === 404) {
+          if (v3IndividualResponse.status === 404) {
             throw new Error('v3 endpoint not found');
           }
+          
+          if (v3IndividualResponse.status === 401) {
+            throw new Error('v3 authentication failed');
+          }
+          
+          // Check for BSNG-1001 error code
+          const clonedIndividualResponse = v3IndividualResponse.clone();
+          const individualResponseText = await clonedIndividualResponse.text();
+          let individualErrorData: any = null;
+          try {
+            individualErrorData = JSON.parse(individualResponseText);
+          } catch {
+            // Not JSON
+          }
+          
+          const individualErrorCode = individualErrorData?.code || '';
+          if (individualErrorCode === 'BSNG-1001' || (individualErrorCode.startsWith('BSNG-1') && individualErrorData?.status === 'error')) {
+            throw new Error('v3 authentication failed');
+          }
+          
+          individualResponse = v3IndividualResponse;
         } catch {
+          // Fallback to v2 for individual sends
           individualResponse = await fetch('https://www.bulksmsnigeria.com/api/v2/sms', {
             method: 'POST',
             headers: {
