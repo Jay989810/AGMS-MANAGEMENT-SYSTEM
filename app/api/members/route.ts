@@ -28,7 +28,7 @@ async function handler(req: NextRequest, { user }: { user: any }) {
 
     // Optimize: Limit results and select only needed fields
     const members = await Member.find(query)
-      .select('fullName gender dateOfBirth phone email ministry membershipStatus profileImage createdAt')
+      .select('fullName gender dateOfBirth phone email ministry membershipStatus maritalStatus lifeStatus familyId relationship profileImage createdAt')
       .sort({ createdAt: -1 })
       .limit(1000)
       .lean();

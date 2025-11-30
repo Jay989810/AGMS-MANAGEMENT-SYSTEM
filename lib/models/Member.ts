@@ -9,6 +9,10 @@ export interface IMember extends Document {
   address: string;
   ministry?: string;
   membershipStatus: 'Active' | 'Inactive' | 'Visitor';
+  maritalStatus: 'Single' | 'Married';
+  lifeStatus: 'Alive' | 'Deceased';
+  familyId?: mongoose.Types.ObjectId;
+  relationship?: string; // e.g., 'Head', 'Spouse', 'Child', 'Parent'
   profileImage?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -52,6 +56,25 @@ const MemberSchema: Schema = new Schema<IMember>(
       enum: ['Active', 'Inactive', 'Visitor'],
       default: 'Active',
     },
+    maritalStatus: {
+      type: String,
+      enum: ['Single', 'Married'],
+      default: 'Single',
+    },
+    lifeStatus: {
+      type: String,
+      enum: ['Alive', 'Deceased'],
+      default: 'Alive',
+    },
+    familyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Family',
+      default: null,
+    },
+    relationship: {
+      type: String,
+      trim: true,
+    },
     profileImage: {
       type: String,
     },
@@ -67,6 +90,8 @@ MemberSchema.index({ email: 1 });
 MemberSchema.index({ phone: 1 });
 MemberSchema.index({ ministry: 1 });
 MemberSchema.index({ membershipStatus: 1 });
+MemberSchema.index({ familyId: 1 });
+MemberSchema.index({ lifeStatus: 1 });
 MemberSchema.index({ createdAt: -1 });
 MemberSchema.index({ dateOfBirth: 1 });
 

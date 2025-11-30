@@ -96,8 +96,11 @@ export default function MembersPage() {
         'Date of Birth': format(new Date(member.dateOfBirth), 'yyyy-MM-dd'),
         Phone: member.phone,
         Email: member.email || '',
+        'Marital Status': member.maritalStatus || 'Single',
+        'Life Status': member.lifeStatus || 'Alive',
+        Address: member.address || '',
         Department: member.ministry || 'N/A',
-        Status: member.membershipStatus,
+        'Membership Status': member.membershipStatus,
       }));
 
       exportToCSV(exportData, 'members');

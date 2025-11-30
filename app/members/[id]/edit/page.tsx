@@ -15,13 +15,15 @@ export default function EditMemberPage() {
   const [departments, setDepartments] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     fullName: '',
-    gender: 'Male',
+    gender: 'Male' as 'Male' | 'Female',
     dateOfBirth: '',
     phone: '',
     email: '',
     address: '',
     ministry: '',
-    membershipStatus: 'Active',
+    membershipStatus: 'Active' as 'Active' | 'Inactive' | 'Visitor',
+    maritalStatus: 'Single' as 'Single' | 'Married',
+    lifeStatus: 'Alive' as 'Alive' | 'Deceased',
     profileImage: '',
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -49,7 +51,9 @@ export default function EditMemberPage() {
         email: member.email || '',
         address: member.address,
         ministry: member.ministry || '',
-        membershipStatus: member.membershipStatus,
+        membershipStatus: member.membershipStatus || 'Active',
+        maritalStatus: member.maritalStatus || 'Single',
+        lifeStatus: member.lifeStatus || 'Alive',
         profileImage: member.profileImage || '',
       });
       
@@ -146,8 +150,8 @@ export default function EditMemberPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold text-navy">Edit Member</h1>
+      <div className="max-w-4xl mx-auto space-y-4 lg:space-y-6 px-4 sm:px-0">
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy">Edit Member</h1>
 
         <form onSubmit={handleSubmit}>
           <Card>
@@ -216,9 +220,27 @@ export default function EditMemberPage() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
                 <Select
+                  label="Marital Status *"
+                  value={formData.maritalStatus}
+                  onChange={(e) => setFormData({ ...formData, maritalStatus: e.target.value as 'Single' | 'Married' })}
+                  options={[
+                    { value: 'Single', label: 'Single' },
+                    { value: 'Married', label: 'Married' },
+                  ]}
+                />
+                <Select
+                  label="Life Status *"
+                  value={formData.lifeStatus}
+                  onChange={(e) => setFormData({ ...formData, lifeStatus: e.target.value as 'Alive' | 'Deceased' })}
+                  options={[
+                    { value: 'Alive', label: 'Alive' },
+                    { value: 'Deceased', label: 'Deceased / Demise' },
+                  ]}
+                />
+                <Select
                   label="Membership Status *"
                   value={formData.membershipStatus}
-                  onChange={(e) => setFormData({ ...formData, membershipStatus: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, membershipStatus: e.target.value as 'Active' | 'Inactive' | 'Visitor' })}
                   options={[
                     { value: 'Active', label: 'Active' },
                     { value: 'Inactive', label: 'Inactive' },
@@ -247,14 +269,15 @@ export default function EditMemberPage() {
                 ]}
               />
 
-              <div className="flex gap-4 pt-4">
-                <Button type="submit" variant="primary" disabled={loading}>
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
+                <Button type="submit" variant="primary" disabled={loading} className="w-full sm:w-auto">
                   {loading ? 'Updating...' : 'Update Member'}
                 </Button>
                 <Button
                   type="button"
                   variant="secondary"
                   onClick={() => router.back()}
+                  className="w-full sm:w-auto"
                 >
                   Cancel
                 </Button>

@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Download } from 'lucide-react';
+import { exportToCSV } from '@/lib/exportToCSV';
+import Toast from '@/components/ui/Toast';
 
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<any[]>([]);
@@ -12,6 +14,11 @@ export default function DepartmentsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '' });
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; isVisible: boolean }>({
+    message: '',
+    type: 'info',
+    isVisible: false,
+  });
 
   useEffect(() => {
     fetchDepartments();
@@ -100,6 +107,26 @@ export default function DepartmentsPage() {
     setShowForm(false);
   };
 
+  const handleExportCSV = () => {
+    if (departments.length === 0) {
+      setToast({ message: 'No departments available for export', type: 'error', isVisible: true });
+      return;
+    }
+
+    try {
+      const exportData = departments.map((dept) => ({
+        Name: dept.name,
+        Description: dept.description || '',
+        'Created At': new Date(dept.createdAt).toISOString().split('T')[0],
+      }));
+
+      exportToCSV(exportData, 'departments');
+      setToast({ message: 'CSV file downloaded successfully', type: 'success', isVisible: true });
+    } catch (error: any) {
+      setToast({ message: error.message || 'Failed to export CSV', type: 'error', isVisible: true });
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -113,16 +140,37 @@ export default function DepartmentsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Toast Notification */}
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={toast.isVisible}
+          onClose={() => setToast({ ...toast, isVisible: false })}
+        />
+
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h1 className="text-2xl lg:text-3xl font-bold text-navy">Departments</h1>
-          <Button
-            variant="primary"
-            onClick={() => setShowForm(!showForm)}
-            className="flex items-center justify-center gap-2 w-full sm:w-auto"
-          >
-            <Plus size={20} />
-            {showForm ? 'Cancel' : 'Add Department'}
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            {departments.length > 0 && (
+              <Button
+                variant="gold"
+                onClick={handleExportCSV}
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
+              >
+                <Download size={20} />
+                <span className="hidden sm:inline">Export CSV</span>
+                <span className="sm:hidden">Export</span>
+              </Button>
+            )}
+            <Button
+              variant="primary"
+              onClick={() => setShowForm(!showForm)}
+              className="flex items-center justify-center gap-2 w-full sm:w-auto"
+            >
+              <Plus size={20} />
+              {showForm ? 'Cancel' : 'Add Department'}
+            </Button>
+          </div>
         </div>
 
         {showForm && (
@@ -172,28 +220,28 @@ export default function DepartmentsPage() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {departments.map((dept) => (
                 <div
                   key={dept._id}
                   className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-semibold text-lg text-navy">{dept.name}</h3>
-                    <div className="flex gap-2">
+                  <div className="flex items-start justify-between mb-2 gap-2">
+                    <h3 className="font-semibold text-base sm:text-lg text-navy flex-1">{dept.name}</h3>
+                    <div className="flex gap-1 sm:gap-2 flex-shrink-0">
                       <Button
                         variant="secondary"
-                        className="p-1"
+                        className="p-1.5 sm:p-2"
                         onClick={() => handleEdit(dept)}
                       >
-                        <Edit size={16} />
+                        <Edit size={14} className="sm:w-4 sm:h-4" />
                       </Button>
                       <Button
                         variant="danger"
-                        className="p-1"
+                        className="p-1.5 sm:p-2"
                         onClick={() => handleDelete(dept._id)}
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} className="sm:w-4 sm:h-4" />
                       </Button>
                     </div>
                   </div>

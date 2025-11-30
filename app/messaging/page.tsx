@@ -111,7 +111,7 @@ export default function MessagingPage() {
                 type="submit"
                 variant="primary"
                 disabled={loading}
-                className="flex items-center gap-2"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 <Send size={20} />
                 {loading ? 'Sending...' : 'Send Message'}

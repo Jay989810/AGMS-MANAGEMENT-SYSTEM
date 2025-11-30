@@ -73,8 +73,8 @@ export default function EditAttendancePage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold text-navy">Edit Attendance Record</h1>
+      <div className="max-w-2xl mx-auto space-y-4 lg:space-y-6 px-4 sm:px-0">
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy">Edit Attendance Record</h1>
 
         <form onSubmit={handleSubmit}>
           <Card>
@@ -115,14 +115,15 @@ export default function EditAttendancePage() {
                 />
               </div>
 
-              <div className="flex gap-4 pt-4">
-                <Button type="submit" variant="primary" disabled={loading}>
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
+                <Button type="submit" variant="primary" disabled={loading} className="w-full sm:w-auto">
                   {loading ? 'Updating...' : 'Update Attendance'}
                 </Button>
                 <Button
                   type="button"
                   variant="secondary"
                   onClick={() => router.back()}
+                  className="w-full sm:w-auto"
                 >
                   Cancel
                 </Button>

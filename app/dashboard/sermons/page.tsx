@@ -4,13 +4,20 @@ import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import { Plus, Edit, Trash2, ExternalLink, Calendar } from 'lucide-react';
+import { Plus, Edit, Trash2, ExternalLink, Calendar, Download } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { exportToCSV } from '@/lib/exportToCSV';
+import Toast from '@/components/ui/Toast';
 
 export default function SermonsPage() {
   const [sermons, setSermons] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; isVisible: boolean }>({
+    message: '',
+    type: 'info',
+    isVisible: false,
+  });
 
   useEffect(() => {
     fetchSermons();
@@ -37,12 +44,36 @@ export default function SermonsPage() {
       const res = await fetch(`/api/sermons/${id}`, { method: 'DELETE' });
       if (res.ok) {
         fetchSermons();
+        setToast({ message: 'Sermon deleted successfully', type: 'success', isVisible: true });
       } else {
-        alert('Failed to delete sermon');
+        setToast({ message: 'Failed to delete sermon', type: 'error', isVisible: true });
       }
     } catch (error) {
       console.error('Failed to delete sermon:', error);
-      alert('Failed to delete sermon');
+      setToast({ message: 'Failed to delete sermon', type: 'error', isVisible: true });
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (sermons.length === 0) {
+      setToast({ message: 'No sermons available for export', type: 'error', isVisible: true });
+      return;
+    }
+
+    try {
+      const exportData = sermons.map((sermon) => ({
+        Date: format(new Date(sermon.date), 'yyyy-MM-dd'),
+        Title: sermon.title,
+        Preacher: sermon.preacher,
+        'Bible Text': sermon.bibleText || '',
+        Summary: sermon.summary || '',
+        'Media Link': sermon.mediaLink || '',
+      }));
+
+      exportToCSV(exportData, 'sermons');
+      setToast({ message: 'CSV file downloaded successfully', type: 'success', isVisible: true });
+    } catch (error: any) {
+      setToast({ message: error.message || 'Failed to export CSV', type: 'error', isVisible: true });
     }
   };
 
@@ -59,14 +90,35 @@ export default function SermonsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Toast Notification */}
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={toast.isVisible}
+          onClose={() => setToast({ ...toast, isVisible: false })}
+        />
+
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h1 className="text-2xl lg:text-3xl font-bold text-navy">Sermon Records</h1>
-          <Link href="/dashboard/sermons/new" className="w-full sm:w-auto">
-            <Button variant="primary" className="flex items-center justify-center gap-2 w-full sm:w-auto">
-              <Plus size={20} />
-              Add Sermon
-            </Button>
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            {sermons.length > 0 && (
+              <Button
+                variant="gold"
+                onClick={handleExportCSV}
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
+              >
+                <Download size={20} />
+                <span className="hidden sm:inline">Export CSV</span>
+                <span className="sm:hidden">Export</span>
+              </Button>
+            )}
+            <Link href="/dashboard/sermons/new" className="w-full sm:w-auto">
+              <Button variant="primary" className="flex items-center justify-center gap-2 w-full sm:w-auto">
+                <Plus size={20} />
+                Add Sermon
+              </Button>
+            </Link>
+          </div>
         </div>
 
         <Card>
@@ -79,7 +131,7 @@ export default function SermonsPage() {
             </div>
           ) : (
             <div className="overflow-x-auto -mx-4 sm:mx-0">
-              <table className="w-full min-w-[800px]">
+              <table className="w-full min-w-[700px]">
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Date</th>

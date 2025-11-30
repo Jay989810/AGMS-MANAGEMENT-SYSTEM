@@ -56,14 +56,14 @@ export default function MemberDetailPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <Button variant="secondary" onClick={() => router.back()} className="flex items-center gap-2">
+      <div className="max-w-4xl mx-auto space-y-4 lg:space-y-6 px-4 sm:px-0">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+          <Button variant="secondary" onClick={() => router.back()} className="flex items-center justify-center gap-2 w-full sm:w-auto">
             <ArrowLeft size={20} />
             Back
           </Button>
-          <Link href={`/members/${member._id}/edit`}>
-            <Button variant="primary" className="flex items-center gap-2">
+          <Link href={`/members/${member._id}/edit`} className="w-full sm:w-auto">
+            <Button variant="primary" className="flex items-center justify-center gap-2 w-full sm:w-auto">
               <Edit size={20} />
               Edit Member
             </Button>
@@ -93,17 +93,35 @@ export default function MemberDetailPage() {
             <div className="flex-1 space-y-4">
               <div>
                 <h2 className="text-2xl font-bold text-navy">{member.fullName}</h2>
-                <span
-                  className={`inline-block mt-2 px-3 py-1 rounded-full text-sm font-medium ${
-                    member.membershipStatus === 'Active'
-                      ? 'bg-green-100 text-green-800'
-                      : member.membershipStatus === 'Inactive'
-                      ? 'bg-gray-100 text-gray-800'
-                      : 'bg-yellow-100 text-yellow-800'
-                  }`}
-                >
-                  {member.membershipStatus}
-                </span>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <span
+                    className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                      member.membershipStatus === 'Active'
+                        ? 'bg-green-100 text-green-800'
+                        : member.membershipStatus === 'Inactive'
+                        ? 'bg-gray-100 text-gray-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}
+                  >
+                    {member.membershipStatus}
+                  </span>
+                  {member.maritalStatus && (
+                    <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                      {member.maritalStatus}
+                    </span>
+                  )}
+                  {member.lifeStatus && (
+                    <span
+                      className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                        member.lifeStatus === 'Alive'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}
+                    >
+                      {member.lifeStatus === 'Deceased' ? 'Deceased' : member.lifeStatus}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -117,6 +135,20 @@ export default function MemberDetailPage() {
                     {format(new Date(member.dateOfBirth), 'MMMM dd, yyyy')}
                   </p>
                 </div>
+                {member.maritalStatus && (
+                  <div>
+                    <p className="text-sm text-gray-500">Marital Status</p>
+                    <p className="font-medium">{member.maritalStatus}</p>
+                  </div>
+                )}
+                {member.lifeStatus && (
+                  <div>
+                    <p className="text-sm text-gray-500">Life Status</p>
+                    <p className={`font-medium ${member.lifeStatus === 'Deceased' ? 'text-red-600' : ''}`}>
+                      {member.lifeStatus === 'Deceased' ? 'Deceased / Demise' : member.lifeStatus}
+                    </p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm text-gray-500">Phone</p>
                   <p className="font-medium">{member.phone}</p>

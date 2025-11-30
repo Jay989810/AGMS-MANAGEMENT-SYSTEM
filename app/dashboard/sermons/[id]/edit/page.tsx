@@ -95,8 +95,8 @@ export default function EditSermonPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold text-navy">Edit Sermon</h1>
+      <div className="max-w-4xl mx-auto space-y-4 lg:space-y-6 px-4 sm:px-0">
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy">Edit Sermon</h1>
 
         <form onSubmit={handleSubmit}>
           <Card>
@@ -155,14 +155,15 @@ export default function EditSermonPage() {
                 You can add links to YouTube videos, audio recordings, or PDF notes
               </p>
 
-              <div className="flex gap-4 pt-4">
-                <Button type="submit" variant="primary" disabled={saving}>
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
+                <Button type="submit" variant="primary" disabled={saving} className="w-full sm:w-auto">
                   {saving ? 'Saving...' : 'Update Sermon'}
                 </Button>
                 <Button
                   type="button"
                   variant="secondary"
                   onClick={() => router.back()}
+                  className="w-full sm:w-auto"
                 >
                   Cancel
                 </Button>
