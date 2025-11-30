@@ -14,7 +14,8 @@ import {
   GraduationCap,
   LogOut,
   X,
-  Activity
+  Activity,
+  Heart
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +25,7 @@ const menuItems = [
   { href: '/attendance', label: 'Attendance', icon: Calendar },
   { href: '/departments', label: 'Departments', icon: Building2 },
   { href: '/birthdays', label: 'Birthdays', icon: Gift },
+  { href: '/weekly-selection', label: 'Member/Family of the Week', icon: Heart },
   { href: '/messaging', label: 'Messaging', icon: Mail },
   { href: '/dashboard/sermons', label: 'Sermons', icon: BookOpen },
   { href: '/dashboard/finance', label: 'Finance', icon: DollarSign, emoji: '💰' },

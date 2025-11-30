@@ -138,12 +138,36 @@ export default function MembersPage() {
         setToast({ message: 'Member deleted successfully', type: 'success', isVisible: true });
         // Refresh to ensure consistency
         fetchMembers();
+        fetchFamilies();
       } else {
         setToast({ message: 'Failed to delete member', type: 'error', isVisible: true });
       }
     } catch (error) {
       console.error('Failed to delete member:', error);
       setToast({ message: 'Failed to delete member', type: 'error', isVisible: true });
+    }
+  };
+
+  const handleDeleteFamily = async (familyId: string, familyName: string) => {
+    if (!confirm(`Are you sure you want to delete the entire "${familyName}" family? This will delete all family members permanently.`)) return;
+
+    try {
+      const res = await fetch(`/api/families/${familyId}`, { 
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setToast({ message: 'Family and all members deleted successfully', type: 'success', isVisible: true });
+        // Refresh to ensure consistency
+        fetchMembers();
+        fetchFamilies();
+      } else {
+        const data = await res.json();
+        setToast({ message: data.error || 'Failed to delete family', type: 'error', isVisible: true });
+      }
+    } catch (error) {
+      console.error('Failed to delete family:', error);
+      setToast({ message: 'Failed to delete family', type: 'error', isVisible: true });
     }
   };
 
@@ -305,12 +329,19 @@ export default function MembersPage() {
                           <td className="py-3 px-2 sm:px-4 text-gray-600 text-sm hidden md:table-cell">-</td>
                           <td className="py-3 px-2 sm:px-4">-</td>
                           <td className="py-3 px-2 sm:px-4">
-                            <div className="flex items-center justify-end gap-1 sm:gap-2">
-                              <Link href={`/members/${headOfFamily?._id || ''}`} onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1 sm:gap-2" onClick={(e) => e.stopPropagation()}>
+                              <Link href={`/members/${headOfFamily?._id || ''}`}>
                                 <Button variant="secondary" className="p-1.5 sm:p-2">
                                   <Eye size={14} className="sm:w-4 sm:h-4" />
                                 </Button>
                               </Link>
+                              <Button
+                                variant="danger"
+                                className="p-1.5 sm:p-2"
+                                onClick={() => handleDeleteFamily(family._id?.toString() || '', family.familyName || 'Family')}
+                              >
+                                <Trash2 size={14} className="sm:w-4 sm:h-4" />
+                              </Button>
                             </div>
                           </td>
                         </tr>
