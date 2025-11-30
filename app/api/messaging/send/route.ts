@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import Member from '@/lib/models/Member';
+import Family from '@/lib/models/Family';
 import { sendEmail, generateBroadcastEmail, generateBirthdayEmail } from '@/lib/email';
 import { sendSMS } from '@/lib/sms';
 import { sendWhatsApp } from '@/lib/whatsapp';
 import { logActionFromRequest, AuditActions } from '@/lib/audit';
+import mongoose from 'mongoose';
 
 // Mark route as dynamic since it uses authentication and database
 export const dynamic = 'force-dynamic';
@@ -45,6 +47,7 @@ async function handler(req: NextRequest, { user }: { user: any }) {
       let memberList: any[] = [];
 
       if (recipients === 'all') {
+        // All members with email or phone
         memberList = await Member.find({
           $or: [
             { email: { $exists: true, $ne: '' } },
@@ -59,8 +62,68 @@ async function handler(req: NextRequest, { user }: { user: any }) {
             { phone: { $exists: true, $ne: '' } }
           ]
         });
+      } else if (recipients === 'inactive') {
+        memberList = await Member.find({
+          membershipStatus: 'Inactive',
+          $or: [
+            { email: { $exists: true, $ne: '' } },
+            { phone: { $exists: true, $ne: '' } }
+          ]
+        });
+      } else if (recipients === 'visitors') {
+        memberList = await Member.find({
+          membershipStatus: 'Visitor',
+          $or: [
+            { email: { $exists: true, $ne: '' } },
+            { phone: { $exists: true, $ne: '' } }
+          ]
+        });
+      } else if (typeof recipients === 'object' && recipients.type === 'members' && Array.isArray(recipients.ids)) {
+        // Specific member IDs
+        const memberIds = recipients.ids.map((id: string) => new mongoose.Types.ObjectId(id));
+        memberList = await Member.find({ 
+          _id: { $in: memberIds },
+          $or: [
+            { email: { $exists: true, $ne: '' } },
+            { phone: { $exists: true, $ne: '' } }
+          ]
+        });
+      } else if (typeof recipients === 'object' && recipients.type === 'families' && Array.isArray(recipients.ids)) {
+        // Family IDs - get all members from these families
+        const familyIds = recipients.ids.map((id: string) => new mongoose.Types.ObjectId(id));
+        const families = await Family.find({ _id: { $in: familyIds } }).populate('members');
+        const allMemberIds: mongoose.Types.ObjectId[] = [];
+        
+        families.forEach((family: any) => {
+          if (Array.isArray(family.members)) {
+            family.members.forEach((member: any) => {
+              if (member._id) {
+                allMemberIds.push(new mongoose.Types.ObjectId(member._id));
+              }
+            });
+          }
+        });
+
+        // Remove duplicates
+        const uniqueMemberIds = Array.from(new Set(allMemberIds.map(id => id.toString())));
+        
+        memberList = await Member.find({ 
+          _id: { $in: uniqueMemberIds.map(id => new mongoose.Types.ObjectId(id)) },
+          $or: [
+            { email: { $exists: true, $ne: '' } },
+            { phone: { $exists: true, $ne: '' } }
+          ]
+        });
       } else if (Array.isArray(recipients)) {
-        memberList = await Member.find({ _id: { $in: recipients } });
+        // Legacy support: array of member IDs
+        const memberIds = recipients.map((id: string) => new mongoose.Types.ObjectId(id));
+        memberList = await Member.find({ 
+          _id: { $in: memberIds },
+          $or: [
+            { email: { $exists: true, $ne: '' } },
+            { phone: { $exists: true, $ne: '' } }
+          ]
+        });
       }
 
       if (memberList.length === 0) {

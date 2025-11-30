@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Card from '@/components/ui/Card';
+import Footer from '@/components/Layout/Footer';
 
 export default function SetupPage() {
   const router = useRouter();
@@ -74,30 +75,32 @@ export default function SetupPage() {
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-navy to-navy-dark">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-navy to-navy-dark">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
           <p className="mt-4 text-white">Checking setup status...</p>
         </div>
+        <Footer darkMode />
       </div>
     );
   }
 
   if (!setupNeeded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-navy to-navy-dark">
-        <Card className="max-w-md">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-navy to-navy-dark">
+        <Card className="max-w-md mb-8">
           <div className="text-center">
             <p className="text-gray-600">Setup is not needed. Redirecting to login...</p>
           </div>
         </Card>
+        <Footer darkMode />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-navy to-navy-dark p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-navy to-navy-dark p-4">
+      <Card className="w-full max-w-md mb-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-navy mb-2">Initial Setup</h1>
           <p className="text-gray-600">Create your first admin account</p>
@@ -153,6 +156,7 @@ export default function SetupPage() {
           </p>
         </form>
       </Card>
+      <Footer darkMode />
     </div>
   );
 }

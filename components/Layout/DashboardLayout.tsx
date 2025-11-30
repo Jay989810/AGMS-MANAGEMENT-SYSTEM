@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
+import Footer from './Footer';
 import PWAInstallPrompt from '../PWAInstallPrompt';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -44,6 +45,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex-1 flex flex-col lg:ml-0 min-w-0">
         <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         <main className="flex-1 p-4 lg:p-6 bg-gray-50 overflow-x-hidden">{children}</main>
+        <Footer />
         <PWAInstallPrompt />
       </div>
     </div>
