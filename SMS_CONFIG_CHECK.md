@@ -4,18 +4,20 @@
 
 To send SMS messages, you need to configure the following variables in your `.env.local` file:
 
-### For Bulk SMS Nigeria v2 API (Recommended):
+### For Bulk SMS Nigeria v3 API (Recommended - Bearer Tokens):
 ```env
 SMS_PROVIDER=bulksmsnigeria
-SMS_PASSWORD=your-api-token-from-bulksmsnigeria-dashboard
+SMS_PASSWORD=your-bearer-api-token-from-v3
 SMS_SENDER_ID=your-approved-sender-id
 ```
 
 **Note:** 
-- `SMS_USERNAME` is NOT required for Bulk SMS Nigeria v2 API
-- `SMS_PASSWORD` should contain your **API Token** (Bearer token) from your BulkSMS Nigeria dashboard
-- Get your API token from: https://www.bulksmsnigeria.com/dashboard/settings
+- `SMS_USERNAME` is NOT required for Bulk SMS Nigeria v3/v2 API
+- `SMS_PASSWORD` should contain your **Bearer API Token** from v3 API (with named tokens and granular permissions)
+- System automatically uses v3 API first, falls back to v2 if needed
+- Get your Bearer token from: BulkSMS Nigeria Dashboard → Bearer API Tokens → Generate New Bearer Token
 - Your `SMS_SENDER_ID` must be approved/registered (max 11 characters, e.g., "AMAZINGGRACE")
+- The Bearer token provides more security with named tokens and granular permissions
 
 ### Common Issues:
 
@@ -38,14 +40,19 @@ SMS_SENDER_ID=your-approved-sender-id
 ### How to Get Bulk SMS Nigeria Credentials:
 
 1. Sign up at [BulkSMS Nigeria](https://www.bulksmsnigeria.com/)
-2. Go to Dashboard Settings to get your **API Token**
-3. Register/approve a sender ID (usually your organization name like "AMAZINGGRACE" - max 11 characters)
-4. Add these to your `.env.local` file:
+2. Go to Dashboard → **Bearer API Tokens** section
+3. Click **"Generate New Bearer Token"**
+4. Name your token (e.g., "CHURCH") - this is for identification only
+5. Copy the generated **Bearer Token** (this is your API token)
+6. Register/approve a sender ID (usually your organization name like "AMAZINGGRACE" - max 11 characters)
+7. Add these to your `.env.local` file:
    ```
    SMS_PROVIDER=bulksmsnigeria
-   SMS_PASSWORD=your-api-token-here
+   SMS_PASSWORD=your-bearer-token-here
    SMS_SENDER_ID=your-approved-sender-id
    ```
+
+**Important:** Use the Bearer API Token from the v3 system (Bearer API Tokens section). This provides better security with named tokens and granular permissions.
 
 ### Testing Your Configuration:
 

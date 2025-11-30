@@ -93,6 +93,7 @@ async function sendViaBulkSMSNigeria(
 
   try {
     // Try v3 API first (for Bearer tokens with named tokens and granular permissions)
+    // v3 API endpoint: POST /api/v3/sms (similar structure to v2)
     try {
       response = await fetch('https://www.bulksmsnigeria.com/api/v3/sms', {
         method: 'POST',
@@ -108,13 +109,19 @@ async function sendViaBulkSMSNigeria(
         }),
       });
       
-      // Check if v3 endpoint exists (if 404, try v2)
+      // Check if v3 endpoint exists or if there's an authentication error
       if (response.status === 404) {
         throw new Error('v3 endpoint not found');
       }
-    } catch (v3Error) {
-      // If v3 fails or returns 404, try v2
-      console.log('v3 API not available, trying v2...');
+      
+      // If authentication error (401), log it but don't fallback immediately
+      // Let it proceed to check the response for more details
+      if (response.status === 401) {
+        console.warn('v3 API authentication failed, response:', response.status);
+      }
+    } catch (v3Error: any) {
+      // If v3 fails due to network or 404, try v2
+      console.log('v3 API not available, trying v2...', v3Error.message);
       apiVersion = 'v2';
       response = await fetch('https://www.bulksmsnigeria.com/api/v2/sms', {
         method: 'POST',
@@ -147,10 +154,12 @@ async function sendViaBulkSMSNigeria(
     }
 
     console.log(`BulkSMS Nigeria API ${apiVersion} Response:`, JSON.stringify(data, null, 2));
+    console.log(`API ${apiVersion} HTTP Status:`, response.status, response.statusText);
 
     // Check response format according to documentation
     // Success: {"status": "success", "code": "BSNG-0000", ...}
     // Error: {"status": "error", "code": "BSNG-XXXX", "error": {...}}
+    // v3 API might use different response format, so check multiple patterns
     if (data.status === 'success' && (data.code === 'BSNG-0000' || data.code === '200' || response.ok)) {
       // Success - count recipients from response or use message count
       const recipientCount = data.data?.recipients_count || data.recipients_count || recipients.split(',').length;
@@ -165,12 +174,12 @@ async function sendViaBulkSMSNigeria(
       
       // Provide user-friendly error messages based on error codes
       let userFriendlyMsg = errorMsg;
-      if (errorCode.startsWith('BSNG-1')) {
-        userFriendlyMsg = `Authentication error: ${errorMsg}. Please check your API token.`;
+      if (response.status === 401 || errorCode.startsWith('BSNG-1')) {
+        userFriendlyMsg = `Authentication error: ${errorMsg}. Please verify your Bearer API token is correct and has SMS sending permissions.`;
       } else if (errorCode.startsWith('BSNG-2')) {
-        userFriendlyMsg = `Invalid request: ${errorMsg}. Please check sender ID and phone numbers.`;
+        userFriendlyMsg = `Invalid request: ${errorMsg}. Please check sender ID (max 11 characters) and phone number formats.`;
       } else if (errorCode.startsWith('BSNG-3')) {
-        userFriendlyMsg = `Service error: ${errorMsg}`;
+        userFriendlyMsg = `Service error: ${errorMsg}. Check your account balance and limits.`;
       } else if (errorCode.startsWith('BSNG-5')) {
         userFriendlyMsg = `Server error: ${errorMsg}. Please try again later.`;
       }
