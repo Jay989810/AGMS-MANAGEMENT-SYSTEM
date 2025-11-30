@@ -56,10 +56,15 @@ async function sendViaBulkSMSNigeria(
   config: SMSConfig
 ): Promise<{ success: number; failed: number; errors: any[] }> {
   // Bulk SMS Nigeria API requires Bearer API token (in password/apiKey) and senderId
-  const apiToken = config.password || config.apiKey;
+  // Trim whitespace from token to avoid authentication issues
+  const apiToken = (config.password || config.apiKey)?.trim();
   
   if (!apiToken || !config.senderId) {
     throw new Error('Bulk SMS Nigeria requires API token (SMS_PASSWORD or SMS_API_KEY) and SMS_SENDER_ID');
+  }
+
+  if (apiToken.length === 0) {
+    throw new Error('API token is empty. Please check your SMS_PASSWORD or SMS_API_KEY in .env.local');
   }
 
   const results: { success: number; failed: number; errors: any[] } = { success: 0, failed: 0, errors: [] };

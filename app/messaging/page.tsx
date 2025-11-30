@@ -434,13 +434,16 @@ export default function MessagingPage() {
               </div>
             )}
 
-            <Input
-              label="Subject *"
-              value={formData.subject}
-              onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-              placeholder="e.g., Weekly Announcements"
-              required
-            />
+            {/* Subject field only for Email - SMS and WhatsApp don't use subject */}
+            {formData.channel === 'email' && (
+              <Input
+                label="Subject *"
+                value={formData.subject}
+                onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                placeholder="e.g., Weekly Announcements"
+                required
+              />
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

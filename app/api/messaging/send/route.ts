@@ -36,9 +36,16 @@ async function handler(req: NextRequest, { user }: { user: any }) {
 
     // Broadcast messages (Email, SMS, or WhatsApp)
     if (type === 'broadcast') {
-      if (!subject || !message) {
+      // Subject required only for email, not for SMS or WhatsApp
+      if (channel === 'email' && !subject) {
         return NextResponse.json(
-          { error: 'Subject and message are required' },
+          { error: 'Subject is required for email messages' },
+          { status: 400 }
+        );
+      }
+      if (!message) {
+        return NextResponse.json(
+          { error: 'Message is required' },
           { status: 400 }
         );
       }
@@ -175,8 +182,11 @@ async function handler(req: NextRequest, { user }: { user: any }) {
         
         // Validate required environment variables based on provider
         if (provider === 'bulksmsnigeria') {
-          // BulkSMS Nigeria v2 API requires API token (in SMS_PASSWORD or SMS_API_KEY) and senderId
-          const apiToken = process.env.SMS_PASSWORD || process.env.SMS_API_KEY;
+          // BulkSMS Nigeria v3/v2 API requires Bearer API token (in SMS_PASSWORD or SMS_API_KEY) and senderId
+          // Trim whitespace and remove quotes if present (common .env issue)
+          const rawToken = process.env.SMS_PASSWORD || process.env.SMS_API_KEY;
+          const apiToken = rawToken?.trim().replace(/^["']|["']$/g, ''); // Remove surrounding quotes
+          
           if (!apiToken || !process.env.SMS_SENDER_ID) {
             const missingVars = [];
             if (!apiToken) missingVars.push('SMS_PASSWORD or SMS_API_KEY');
@@ -191,12 +201,25 @@ async function handler(req: NextRequest, { user }: { user: any }) {
               { status: 400 }
             );
           }
+          
+          // Validate token format (Bearer tokens are typically long alphanumeric strings)
+          if (apiToken.length < 10) {
+            console.error('API token appears to be too short. Bearer tokens are usually longer strings.');
+            return NextResponse.json(
+              { 
+                error: 'API token appears invalid. Please verify your Bearer token from BulkSMS Nigeria dashboard.',
+                errorMessage: 'Invalid API token format. Please check your SMS_PASSWORD in .env.local - it should be your Bearer token from the v3 API (no quotes needed).'
+              },
+              { status: 400 }
+            );
+          }
         }
 
         const smsConfig = {
           provider,
-          apiKey: process.env.SMS_API_KEY,
-          password: process.env.SMS_PASSWORD || process.env.SMS_API_KEY, // API token for BulkSMS Nigeria
+          apiKey: process.env.SMS_API_KEY?.trim().replace(/^["']|["']$/g, ''),
+          // Clean the password/token: trim whitespace and remove surrounding quotes
+          password: (process.env.SMS_PASSWORD || process.env.SMS_API_KEY)?.trim().replace(/^["']|["']$/g, ''), // API token for BulkSMS Nigeria
           accountSid: process.env.SMS_ACCOUNT_SID,
           authToken: process.env.SMS_AUTH_TOKEN,
           username: process.env.SMS_USERNAME, // Not required for BulkSMS Nigeria v2
@@ -215,11 +238,11 @@ async function handler(req: NextRequest, { user }: { user: any }) {
           );
         }
 
-        // Format message for SMS (subject + message, max 160 chars per SMS)
-        const fullMessage = subject ? `${subject}\n\n${message}` : message;
+        // Format message for SMS (NO subject - SMS doesn't support subject field, only body)
+        // SMS should only contain the message body, not subject
         const smsMessages = phones.map((phone) => ({
           to: phone,
-          message: fullMessage.substring(0, 160), // SMS character limit
+          message: message.substring(0, 160), // SMS character limit (160 chars per SMS)
         }));
 
         let result;
