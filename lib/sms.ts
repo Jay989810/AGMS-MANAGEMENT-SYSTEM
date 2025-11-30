@@ -107,7 +107,9 @@ async function sendViaBulkSMSNigeria(
         results.success = recipientCount;
       } else {
         results.failed = messages.length;
-        results.errors.push({ to: 'multiple', error: data.response });
+        const errorMsg = JSON.stringify(data.response || data);
+        console.error('Bulk SMS Nigeria Error:', errorMsg);
+        results.errors.push({ to: 'multiple', error: data.response || data, message: errorMsg });
       }
     } else {
       // Try alternative API format (BulkSMSNigeria format)
@@ -153,16 +155,24 @@ async function sendViaBulkSMSNigeria(
               results.success++;
             } else {
               results.failed++;
-              results.errors.push({ to: msg.to, error: individualData });
+              const errorMsg = JSON.stringify(individualData);
+              console.error(`SMS send failed for ${msg.to}:`, errorMsg);
+              results.errors.push({ to: msg.to, error: individualData, message: errorMsg });
             }
           } catch (error: any) {
             results.failed++;
-            results.errors.push({ to: msg.to, error: error.message });
+            const errorMsg = error.message || String(error);
+            console.error(`SMS send error for ${msg.to}:`, errorMsg);
+            results.errors.push({ to: msg.to, error: error.message || error, message: errorMsg });
           }
         }
       }
     }
   } catch (error: any) {
+    console.error('Bulk SMS Nigeria API Error:', error);
+    const errorMsg = error.message || String(error);
+    results.errors.push({ to: 'all', error: error, message: errorMsg });
+    
     // If bulk sending fails, try individual messages
     for (const msg of messages) {
       try {

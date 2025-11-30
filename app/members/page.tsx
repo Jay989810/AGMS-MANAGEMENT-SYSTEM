@@ -1,23 +1,30 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { Plus, Search, Edit, Trash2, Eye, Upload, Download } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, Upload, Download, ChevronDown, ChevronRight, Users } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { exportToCSV } from '@/lib/exportToCSV';
 import Toast from '@/components/ui/Toast';
 import { format } from 'date-fns';
 
+interface GroupedMembers {
+  families: { [key: string]: { family: any; members: any[] } };
+  individuals: any[];
+}
+
 export default function MembersPage() {
   const [members, setMembers] = useState<any[]>([]);
+  const [families, setFamilies] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [ministryFilter, setMinistryFilter] = useState('');
+  const [expandedFamilies, setExpandedFamilies] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; isVisible: boolean }>({
     message: '',
     type: 'info',
@@ -26,6 +33,7 @@ export default function MembersPage() {
 
   useEffect(() => {
     fetchMembers();
+    fetchFamilies();
     fetchDepartments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, ministryFilter]);
@@ -48,6 +56,18 @@ export default function MembersPage() {
     }
   };
 
+  const fetchFamilies = async () => {
+    try {
+      const res = await fetch('/api/families', {
+        credentials: 'include',
+      });
+      const data = await res.json();
+      setFamilies(data.families || []);
+    } catch (error) {
+      console.error('Failed to fetch families:', error);
+    }
+  };
+
   const fetchDepartments = async () => {
     try {
       const res = await fetch('/api/departments', {
@@ -59,6 +79,50 @@ export default function MembersPage() {
       console.error('Failed to fetch departments:', error);
     }
   };
+
+  const toggleFamily = (familyId: string) => {
+    const newExpanded = new Set(expandedFamilies);
+    if (newExpanded.has(familyId)) {
+      newExpanded.delete(familyId);
+    } else {
+      newExpanded.add(familyId);
+    }
+    setExpandedFamilies(newExpanded);
+  };
+
+  const groupMembersByFamily = (): GroupedMembers => {
+    const grouped: GroupedMembers = {
+      families: {},
+      individuals: [],
+    };
+
+    // Create a map of familyId to family object
+    const familyMap = new Map();
+    families.forEach(family => {
+      familyMap.set(family._id.toString(), family);
+    });
+
+    // Group members by family
+    members.forEach(member => {
+      if (member.familyId) {
+        const familyId = member.familyId.toString();
+        if (!grouped.families[familyId]) {
+          const family = familyMap.get(familyId);
+          grouped.families[familyId] = {
+            family: family || { familyName: 'Unknown Family', _id: familyId },
+            members: [],
+          };
+        }
+        grouped.families[familyId].members.push(member);
+      } else {
+        grouped.individuals.push(member);
+      }
+    });
+
+    return grouped;
+  };
+
+  const groupedData = groupMembersByFamily();
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this member?')) return;
@@ -195,6 +259,7 @@ export default function MembersPage() {
               <table className="w-full min-w-[640px]">
                 <thead>
                   <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm w-8"></th>
                     <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Photo</th>
                     <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Name</th>
                     <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm hidden md:table-cell">Gender</th>
@@ -205,8 +270,125 @@ export default function MembersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {members.map((member) => (
+                  {/* Render Families */}
+                  {Object.values(groupedData.families).map(({ family, members: familyMembers }) => {
+                    const isExpanded = expandedFamilies.has(family._id?.toString() || '');
+                    const headOfFamily = familyMembers.find((m: any) => m.relationship === 'Head') || familyMembers[0];
+                    
+                    return (
+                      <React.Fragment key={family._id?.toString() || 'unknown'}>
+                        {/* Family Header Row */}
+                        <tr className="border-b border-gray-200 bg-navy/5 hover:bg-navy/10 cursor-pointer" onClick={() => toggleFamily(family._id?.toString() || '')}>
+                          <td className="py-3 px-2 sm:px-4">
+                            {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                          </td>
+                          <td className="py-3 px-2 sm:px-4">
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-navy flex items-center justify-center text-white">
+                              <Users size={16} />
+                            </div>
+                          </td>
+                          <td className="py-3 px-2 sm:px-4 font-semibold text-sm">
+                            <div className="flex flex-col">
+                              <span className="text-navy">{family.familyName || 'Family'}</span>
+                              <span className="text-xs text-gray-500 font-normal">{familyMembers.length} member{familyMembers.length !== 1 ? 's' : ''}</span>
+                              {headOfFamily && (
+                                <span className="text-xs text-gray-500 md:hidden font-normal">{headOfFamily.gender} • {headOfFamily.phone}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-2 sm:px-4 text-gray-600 text-sm hidden md:table-cell">
+                            {headOfFamily?.gender || '-'}
+                          </td>
+                          <td className="py-3 px-2 sm:px-4 text-gray-600 text-sm hidden lg:table-cell">
+                            {headOfFamily?.phone || family.phone || '-'}
+                          </td>
+                          <td className="py-3 px-2 sm:px-4 text-gray-600 text-sm hidden md:table-cell">-</td>
+                          <td className="py-3 px-2 sm:px-4">-</td>
+                          <td className="py-3 px-2 sm:px-4">
+                            <div className="flex items-center justify-end gap-1 sm:gap-2">
+                              <Link href={`/members/${headOfFamily?._id || ''}`} onClick={(e) => e.stopPropagation()}>
+                                <Button variant="secondary" className="p-1.5 sm:p-2">
+                                  <Eye size={14} className="sm:w-4 sm:h-4" />
+                                </Button>
+                              </Link>
+                            </div>
+                          </td>
+                        </tr>
+                        
+                        {/* Family Members (when expanded) */}
+                        {isExpanded && familyMembers.map((member: any) => (
+                          <tr key={member._id} className="border-b border-gray-100 hover:bg-gray-50 bg-gray-50/50">
+                            <td className="py-3 px-2 sm:px-4"></td>
+                            <td className="py-3 px-2 sm:px-4 pl-6">
+                              {member.profileImage ? (
+                                <Image
+                                  src={member.profileImage}
+                                  alt={member.fullName}
+                                  width={40}
+                                  height={40}
+                                  className="rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-navy flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
+                                  {member.fullName.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-3 px-2 sm:px-4 font-medium text-sm pl-6">
+                              <div className="flex flex-col">
+                                <span>{member.fullName}</span>
+                                <span className="text-xs text-gray-500">{member.relationship || 'Member'}</span>
+                                <span className="text-xs text-gray-500 md:hidden">{member.gender} • {member.phone}</span>
+                                <span className="text-xs text-gray-500 lg:hidden md:inline">{member.phone}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-2 sm:px-4 text-gray-600 text-sm hidden md:table-cell">{member.gender}</td>
+                            <td className="py-3 px-2 sm:px-4 text-gray-600 text-sm hidden lg:table-cell">{member.phone}</td>
+                            <td className="py-3 px-2 sm:px-4 text-gray-600 text-sm hidden md:table-cell">{member.ministry || 'N/A'}</td>
+                            <td className="py-3 px-2 sm:px-4">
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  member.membershipStatus === 'Active'
+                                    ? 'bg-green-100 text-green-800'
+                                    : member.membershipStatus === 'Inactive'
+                                    ? 'bg-gray-100 text-gray-800'
+                                    : 'bg-yellow-100 text-yellow-800'
+                                }`}
+                              >
+                                {member.membershipStatus}
+                              </span>
+                            </td>
+                            <td className="py-3 px-2 sm:px-4">
+                              <div className="flex items-center justify-end gap-1 sm:gap-2">
+                                <Link href={`/members/${member._id}`}>
+                                  <Button variant="secondary" className="p-1.5 sm:p-2">
+                                    <Eye size={14} className="sm:w-4 sm:h-4" />
+                                  </Button>
+                                </Link>
+                                <Link href={`/members/${member._id}/edit`}>
+                                  <Button variant="secondary" className="p-1.5 sm:p-2">
+                                    <Edit size={14} className="sm:w-4 sm:h-4" />
+                                  </Button>
+                                </Link>
+                                <Button
+                                  variant="danger"
+                                  className="p-1.5 sm:p-2"
+                                  onClick={() => handleDelete(member._id)}
+                                >
+                                  <Trash2 size={14} className="sm:w-4 sm:h-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
+                  
+                  {/* Render Individual Members (no family) */}
+                  {groupedData.individuals.map((member) => (
                     <tr key={member._id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-2 sm:px-4"></td>
                       <td className="py-3 px-2 sm:px-4">
                         {member.profileImage ? (
                           <Image

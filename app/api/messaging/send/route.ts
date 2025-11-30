@@ -202,6 +202,11 @@ async function handler(req: NextRequest, { user }: { user: any }) {
 
         const result = await sendSMS(smsMessages, smsConfig);
 
+        // Log errors to console for debugging
+        if (result.errors && result.errors.length > 0) {
+          console.error('SMS Sending Errors:', JSON.stringify(result.errors, null, 2));
+        }
+
         // Log the action
         await logActionFromRequest(
           user,
@@ -215,19 +220,38 @@ async function handler(req: NextRequest, { user }: { user: any }) {
               failed: result.failed,
               provider: 'bulksmsnigeria',
               message: message.substring(0, 100), // First 100 chars
+              errors: result.errors,
             },
             ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined,
             userAgent: req.headers.get('user-agent') || undefined,
           }
         );
 
+        // Build error message for user
+        let errorMessage = '';
+        if (result.errors && result.errors.length > 0) {
+          const firstError = result.errors[0];
+          if (firstError.message) {
+            errorMessage = firstError.message;
+          } else if (typeof firstError.error === 'string') {
+            errorMessage = firstError.error;
+          } else if (firstError.error && firstError.error.message) {
+            errorMessage = firstError.error.message;
+          } else {
+            errorMessage = JSON.stringify(firstError.error || firstError);
+          }
+        }
+
         return NextResponse.json({
           success: result.success > 0,
-          message: `SMS sent to ${result.success} recipients, ${result.failed} failed`,
+          message: result.success > 0 
+            ? `SMS sent to ${result.success} recipients${result.failed > 0 ? `, ${result.failed} failed` : ''}`
+            : `Failed to send SMS: ${errorMessage || 'Unknown error'}`,
           sent: result.success,
           failed: result.failed,
           total: phones.length,
           errors: result.errors,
+          errorMessage: errorMessage || undefined,
         });
       }
 

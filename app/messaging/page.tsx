@@ -189,15 +189,26 @@ export default function MessagingPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to send message');
+        throw new Error(data.error || data.errorMessage || 'Failed to send message');
       }
 
-      setSuccess(data.message || 'Message sent successfully!');
+      // Show error message if there were failures
+      if (data.errorMessage && data.failed > 0) {
+        setError(data.errorMessage);
+      } else {
+        setSuccess(data.message || 'Message sent successfully!');
+      }
+      
       setResult({
         sent: data.sent || 0,
         failed: data.failed || 0,
         total: data.total || 0,
       });
+      
+      // Log errors to console for debugging
+      if (data.errors && data.errors.length > 0) {
+        console.error('SMS Errors:', data.errors);
+      }
       setFormData({
         type: 'broadcast',
         recipients: recipientType === 'all' || recipientType === 'active' || recipientType === 'inactive' || recipientType === 'visitors' 
