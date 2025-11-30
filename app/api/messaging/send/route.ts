@@ -4,7 +4,7 @@ import connectDB from '@/lib/db';
 import Member from '@/lib/models/Member';
 import Family from '@/lib/models/Family';
 import { sendEmail, generateBroadcastEmail, generateBirthdayEmail } from '@/lib/email';
-import { sendSMS } from '@/lib/sms';
+import { sendSMS, formatPhoneNumberForSMS } from '@/lib/sms';
 import { sendWhatsApp } from '@/lib/whatsapp';
 import { logActionFromRequest, AuditActions } from '@/lib/audit';
 import mongoose from 'mongoose';
@@ -227,21 +227,57 @@ async function handler(req: NextRequest, { user }: { user: any }) {
           from: process.env.SMS_FROM || process.env.SMS_SENDER_ID,
         };
 
-        const phones = memberList
-          .map((m) => m.phone)
-          .filter((phone) => phone && phone.trim() !== '');
+        // Robust phone number extraction and validation
+        const validPhones: string[] = [];
+        const invalidPhones: { phone: string; member: string; reason: string }[] = [];
+        
+        // Process each member's phone number
+        for (const member of memberList) {
+          if (!member.phone || typeof member.phone !== 'string') {
+            invalidPhones.push({
+              phone: member.phone || 'N/A',
+              member: member.fullName || 'Unknown',
+              reason: 'Phone number is missing or invalid type'
+            });
+            continue;
+          }
+          
+          const formatted = formatPhoneNumberForSMS(member.phone);
+          if (formatted) {
+            validPhones.push(formatted);
+          } else {
+            invalidPhones.push({
+              phone: member.phone,
+              member: member.fullName || 'Unknown',
+              reason: 'Phone number format could not be parsed or converted'
+            });
+          }
+        }
 
-        if (phones.length === 0) {
+        if (validPhones.length === 0) {
+          console.error('❌ No valid phone numbers found after formatting');
+          console.error('   Invalid phones:', invalidPhones);
           return NextResponse.json(
-            { error: 'No valid phone numbers found' },
+            { 
+              error: 'No valid phone numbers found',
+              errorMessage: `Found ${memberList.length} members but none have valid phone numbers. ${invalidPhones.length > 0 ? `Invalid: ${invalidPhones.map(p => `${p.member} (${p.phone})`).join(', ')}` : ''}`,
+              invalidPhones: invalidPhones.slice(0, 10) // Limit to first 10 for response size
+            },
             { status: 400 }
           );
         }
 
+        // Log phone number processing results
+        console.log(`📱 Phone number processing: ${validPhones.length} valid, ${invalidPhones.length} invalid`);
+        if (invalidPhones.length > 0) {
+          console.warn('⚠️ Invalid phone numbers:', invalidPhones.slice(0, 5));
+        }
+
         // Format message for SMS (NO subject - SMS doesn't support subject field, only body)
         // SMS should only contain the message body, not subject
-        const smsMessages = phones.map((phone) => ({
-          to: phone,
+        // Note: The formatPhoneNumberForSMS function will handle formatting in the SMS service
+        const smsMessages = validPhones.map((phone) => ({
+          to: phone, // Already formatted by formatPhoneNumberForSMS
           message: message.substring(0, 160), // SMS character limit (160 chars per SMS)
         }));
 
@@ -272,7 +308,7 @@ async function handler(req: NextRequest, { user }: { user: any }) {
           {
             entityName: `SMS: ${subject}`,
             details: {
-              recipients: phones.length,
+              recipients: validPhones.length,
               sent: result.success,
               failed: result.failed,
               provider: 'bulksmsnigeria',
@@ -306,7 +342,7 @@ async function handler(req: NextRequest, { user }: { user: any }) {
             : `Failed to send SMS: ${errorMessage || 'Unknown error'}`,
           sent: result.success,
           failed: result.failed,
-          total: phones.length,
+          total: validPhones.length,
           errors: result.errors,
           errorMessage: errorMessage || undefined,
         });
