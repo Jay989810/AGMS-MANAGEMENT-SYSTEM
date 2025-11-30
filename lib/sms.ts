@@ -47,7 +47,7 @@ export async function sendSMS(
 
 /**
  * Bulk SMS Nigeria Integration (Recommended for Nigeria)
- * Using official BulkSMS Nigeria API v2
+ * Supports v3 API (Bearer tokens with named tokens and granular permissions) and v2 API
  * Documentation: https://www.bulksmsnigeria.com/api
  * Base URL: https://www.bulksmsnigeria.com/api
  */
@@ -55,7 +55,7 @@ async function sendViaBulkSMSNigeria(
   messages: SMSMessage[],
   config: SMSConfig
 ): Promise<{ success: number; failed: number; errors: any[] }> {
-  // Bulk SMS Nigeria v2 API requires API token (in password/apiKey) and senderId
+  // Bulk SMS Nigeria API requires Bearer API token (in password/apiKey) and senderId
   const apiToken = config.password || config.apiKey;
   
   if (!apiToken || !config.senderId) {
@@ -83,28 +83,53 @@ async function sendViaBulkSMSNigeria(
     return formatted;
   };
 
-  try {
-    // Prepare recipients (comma-separated) - BulkSMS Nigeria v2 accepts comma-separated numbers
-    const recipients = messages.map((m) => formatPhoneNumber(m.to)).join(',');
-    // Get message (assuming same message for all)
-    const message = messages[0].message;
+  // Prepare recipients and message
+  const recipients = messages.map((m) => formatPhoneNumber(m.to)).join(',');
+  const message = messages[0].message;
+  const senderId = config.senderId.substring(0, 11); // Max 11 characters
 
-    // Use BulkSMS Nigeria v2 API (Recommended endpoint)
-    // Endpoint: POST /api/v2/sms
-    // Authentication: Authorization: Bearer YOUR_API_TOKEN
-    const response = await fetch('https://www.bulksmsnigeria.com/api/v2/sms', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiToken}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        from: config.senderId.substring(0, 11), // Max 11 characters
-        to: recipients,
-        body: message,
-      }),
-    });
+  let apiVersion = 'v3'; // Default to v3 for Bearer tokens
+  let response: Response;
+
+  try {
+    // Try v3 API first (for Bearer tokens with named tokens and granular permissions)
+    try {
+      response = await fetch('https://www.bulksmsnigeria.com/api/v3/sms', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiToken}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          from: senderId,
+          to: recipients,
+          body: message,
+        }),
+      });
+      
+      // Check if v3 endpoint exists (if 404, try v2)
+      if (response.status === 404) {
+        throw new Error('v3 endpoint not found');
+      }
+    } catch (v3Error) {
+      // If v3 fails or returns 404, try v2
+      console.log('v3 API not available, trying v2...');
+      apiVersion = 'v2';
+      response = await fetch('https://www.bulksmsnigeria.com/api/v2/sms', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiToken}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          from: senderId,
+          to: recipients,
+          body: message,
+        }),
+      });
+    }
 
     let data: any;
     try {
@@ -121,17 +146,17 @@ async function sendViaBulkSMSNigeria(
       return results;
     }
 
-    console.log('BulkSMS Nigeria API Response:', JSON.stringify(data, null, 2));
+    console.log(`BulkSMS Nigeria API ${apiVersion} Response:`, JSON.stringify(data, null, 2));
 
     // Check response format according to documentation
     // Success: {"status": "success", "code": "BSNG-0000", ...}
     // Error: {"status": "error", "code": "BSNG-XXXX", "error": {...}}
-    if (data.status === 'success' && data.code === 'BSNG-0000') {
+    if (data.status === 'success' && (data.code === 'BSNG-0000' || data.code === '200' || response.ok)) {
       // Success - count recipients from response or use message count
-      const recipientCount = data.data?.recipients_count || recipients.split(',').length;
+      const recipientCount = data.data?.recipients_count || data.recipients_count || recipients.split(',').length;
       results.success = recipientCount;
-      console.log(`SMS sent successfully to ${recipientCount} recipients. Cost: ${data.data?.currency || 'NGN'} ${data.data?.cost || 'N/A'}`);
-    } else if (data.status === 'error') {
+      console.log(`SMS sent successfully via ${apiVersion} API to ${recipientCount} recipients. Cost: ${data.data?.currency || data.currency || 'NGN'} ${data.data?.cost || data.cost || 'N/A'}`);
+    } else if (data.status === 'error' || !response.ok) {
       // Error response with BSNG code
       results.failed = messages.length;
       const errorMsg = data.error?.message || data.message || `Error ${data.code || 'Unknown'}`;
@@ -181,32 +206,55 @@ async function sendViaBulkSMSNigeria(
     for (const msg of messages) {
       try {
         const formattedPhone = formatPhoneNumber(msg.to);
-        const individualResponse = await fetch('https://www.bulksmsnigeria.com/api/v2/sms', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiToken}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: JSON.stringify({
-            from: config.senderId.substring(0, 11),
-            to: formattedPhone,
-            body: msg.message,
-          }),
-        });
+        // Try v3 first, then v2 for individual sends
+        let individualResponse: Response;
+        try {
+          individualResponse = await fetch('https://www.bulksmsnigeria.com/api/v3/sms', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiToken}`,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+              from: config.senderId.substring(0, 11),
+              to: formattedPhone,
+              body: msg.message,
+            }),
+          });
+          
+          if (individualResponse.status === 404) {
+            throw new Error('v3 endpoint not found');
+          }
+        } catch {
+          individualResponse = await fetch('https://www.bulksmsnigeria.com/api/v2/sms', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiToken}`,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+              from: config.senderId.substring(0, 11),
+              to: formattedPhone,
+              body: msg.message,
+            }),
+          });
+        }
 
         const individualData = await individualResponse.json();
 
-        if (individualData.status === 'success' && individualData.code === 'BSNG-0000') {
+        if (individualData.status === 'success' && (individualData.code === 'BSNG-0000' || individualData.code === '200' || individualResponse.ok)) {
           results.success++;
           results.failed = Math.max(0, results.failed - 1);
         } else {
           const errorMsg = individualData.error?.message || individualData.message || `Error ${individualData.code || 'Unknown'}`;
-          console.error(`Individual SMS send failed for ${msg.to}:`, individualData.code, errorMsg);
+          const errorCode = individualData.code || 'BSNG-UNKNOWN';
+          console.error(`Individual SMS send failed for ${msg.to}:`, errorCode, errorMsg);
           results.errors.push({ 
             to: msg.to, 
             error: individualData.error || individualData,
-            message: `[${individualData.code || 'BSNG-UNKNOWN'}] ${errorMsg}`
+            message: `[${errorCode}] ${errorMsg}`
           });
         }
       } catch (err: any) {
