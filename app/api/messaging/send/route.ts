@@ -175,10 +175,11 @@ async function handler(req: NextRequest, { user }: { user: any }) {
         
         // Validate required environment variables based on provider
         if (provider === 'bulksmsnigeria') {
-          if (!process.env.SMS_USERNAME || !process.env.SMS_PASSWORD || !process.env.SMS_SENDER_ID) {
+          // BulkSMS Nigeria v2 API requires API token (in SMS_PASSWORD or SMS_API_KEY) and senderId
+          const apiToken = process.env.SMS_PASSWORD || process.env.SMS_API_KEY;
+          if (!apiToken || !process.env.SMS_SENDER_ID) {
             const missingVars = [];
-            if (!process.env.SMS_USERNAME) missingVars.push('SMS_USERNAME');
-            if (!process.env.SMS_PASSWORD) missingVars.push('SMS_PASSWORD');
+            if (!apiToken) missingVars.push('SMS_PASSWORD or SMS_API_KEY');
             if (!process.env.SMS_SENDER_ID) missingVars.push('SMS_SENDER_ID');
             
             console.error('Missing SMS configuration:', missingVars.join(', '));
@@ -195,12 +196,12 @@ async function handler(req: NextRequest, { user }: { user: any }) {
         const smsConfig = {
           provider,
           apiKey: process.env.SMS_API_KEY,
-          password: process.env.SMS_PASSWORD || process.env.SMS_API_KEY, // Password or API key
+          password: process.env.SMS_PASSWORD || process.env.SMS_API_KEY, // API token for BulkSMS Nigeria
           accountSid: process.env.SMS_ACCOUNT_SID,
           authToken: process.env.SMS_AUTH_TOKEN,
-          username: process.env.SMS_USERNAME,
-          senderId: process.env.SMS_SENDER_ID,
-          from: process.env.SMS_FROM,
+          username: process.env.SMS_USERNAME, // Not required for BulkSMS Nigeria v2
+          senderId: process.env.SMS_SENDER_ID, // This is the 'from' parameter
+          from: process.env.SMS_FROM || process.env.SMS_SENDER_ID,
         };
 
         const phones = memberList

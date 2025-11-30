@@ -47,28 +47,36 @@ export async function sendSMS(
 
 /**
  * Bulk SMS Nigeria Integration (Recommended for Nigeria)
- * Supports: eBulkSMS, BulkSMSNigeria, Nigeria Bulk SMS
+ * Using official BulkSMS Nigeria API v2
+ * Documentation: https://www.bulksmsnigeria.com/api
+ * Base URL: https://www.bulksmsnigeria.com/api
  */
 async function sendViaBulkSMSNigeria(
   messages: SMSMessage[],
   config: SMSConfig
 ): Promise<{ success: number; failed: number; errors: any[] }> {
-  if (!config.username || !config.password || !config.senderId) {
-    throw new Error('Bulk SMS Nigeria requires username, password, and senderId');
+  // Bulk SMS Nigeria v2 API requires API token (in password/apiKey) and senderId
+  const apiToken = config.password || config.apiKey;
+  
+  if (!apiToken || !config.senderId) {
+    throw new Error('Bulk SMS Nigeria requires API token (SMS_PASSWORD or SMS_API_KEY) and SMS_SENDER_ID');
   }
 
   const results: { success: number; failed: number; errors: any[] } = { success: 0, failed: 0, errors: [] };
 
-  // Bulk SMS Nigeria typically supports sending to multiple recipients
   // Format phone numbers (remove + and ensure they start with 234 for Nigeria)
   const formatPhoneNumber = (phone: string): string => {
-    // Remove + and spaces
-    let formatted = phone.replace(/\+|\s/g, '');
+    // Remove +, spaces, and dashes
+    let formatted = phone.replace(/\+|\s|-/g, '');
     // If starts with 0, replace with 234 (Nigeria)
     if (formatted.startsWith('0')) {
       formatted = '234' + formatted.substring(1);
     }
-    // If doesn't start with 234, add it
+    // If doesn't start with 234 and is 10 digits, assume Nigeria and add 234
+    if (!formatted.startsWith('234') && formatted.length === 10) {
+      formatted = '234' + formatted;
+    }
+    // If still doesn't start with 234, add it (for other cases)
     if (!formatted.startsWith('234')) {
       formatted = '234' + formatted;
     }
@@ -76,34 +84,34 @@ async function sendViaBulkSMSNigeria(
   };
 
   try {
-    // Prepare recipients (comma-separated)
+    // Prepare recipients (comma-separated) - BulkSMS Nigeria v2 accepts comma-separated numbers
     const recipients = messages.map((m) => formatPhoneNumber(m.to)).join(',');
-    // Get message (assuming same message for all - can be enhanced)
+    // Get message (assuming same message for all)
     const message = messages[0].message;
 
-    // Try eBulkSMS API format (most common)
-    const response = await fetch('https://api.ebulksms.com:8080/sendsms.json', {
+    // Use BulkSMS Nigeria v2 API (Recommended endpoint)
+    // Endpoint: POST /api/v2/sms
+    // Authentication: Authorization: Bearer YOUR_API_TOKEN
+    const response = await fetch('https://www.bulksmsnigeria.com/api/v2/sms', {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${apiToken}`,
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
       body: JSON.stringify({
-        username: config.username,
-        apikey: config.password || config.apiKey, // API key can be used as password
-        sender: config.senderId,
-        messagetext: message,
-        flash: 0, // 0 for normal SMS, 1 for flash SMS
-        recipients: recipients,
+        from: config.senderId.substring(0, 11), // Max 11 characters
+        to: recipients,
+        body: message,
       }),
     });
 
-    let data;
+    let data: any;
     try {
       data = await response.json();
     } catch (jsonError) {
-      // If response is not JSON, get text
       const text = await response.text();
-      console.error('Bulk SMS Nigeria API returned non-JSON response:', text);
+      console.error('BulkSMS Nigeria API returned non-JSON response:', text);
       results.failed = messages.length;
       results.errors.push({ 
         to: 'all', 
@@ -113,136 +121,99 @@ async function sendViaBulkSMSNigeria(
       return results;
     }
 
-    console.log('Bulk SMS Nigeria API Response:', JSON.stringify(data, null, 2));
+    console.log('BulkSMS Nigeria API Response:', JSON.stringify(data, null, 2));
 
-    if (response.ok && data.response) {
-      // eBulkSMS returns response with status
-      if (data.response.status === 'SUCCESS' || data.response.status === 'OK') {
-        // Count recipients from the response or use message count
-        const recipientCount = recipients.split(',').length;
-        results.success = recipientCount;
-      } else {
-        results.failed = messages.length;
-        const errorMsg = data.response.message || data.response.status || JSON.stringify(data.response || data);
-        console.error('Bulk SMS Nigeria Error Response:', errorMsg);
-        results.errors.push({ 
-          to: 'multiple', 
-          error: data.response || data, 
-          message: errorMsg || 'Unknown error from SMS provider'
-        });
+    // Check response format according to documentation
+    // Success: {"status": "success", "code": "BSNG-0000", ...}
+    // Error: {"status": "error", "code": "BSNG-XXXX", "error": {...}}
+    if (data.status === 'success' && data.code === 'BSNG-0000') {
+      // Success - count recipients from response or use message count
+      const recipientCount = data.data?.recipients_count || recipients.split(',').length;
+      results.success = recipientCount;
+      console.log(`SMS sent successfully to ${recipientCount} recipients. Cost: ${data.data?.currency || 'NGN'} ${data.data?.cost || 'N/A'}`);
+    } else if (data.status === 'error') {
+      // Error response with BSNG code
+      results.failed = messages.length;
+      const errorMsg = data.error?.message || data.message || `Error ${data.code || 'Unknown'}`;
+      const errorCode = data.code || 'BSNG-UNKNOWN';
+      console.error('BulkSMS Nigeria Error:', errorCode, errorMsg);
+      
+      // Provide user-friendly error messages based on error codes
+      let userFriendlyMsg = errorMsg;
+      if (errorCode.startsWith('BSNG-1')) {
+        userFriendlyMsg = `Authentication error: ${errorMsg}. Please check your API token.`;
+      } else if (errorCode.startsWith('BSNG-2')) {
+        userFriendlyMsg = `Invalid request: ${errorMsg}. Please check sender ID and phone numbers.`;
+      } else if (errorCode.startsWith('BSNG-3')) {
+        userFriendlyMsg = `Service error: ${errorMsg}`;
+      } else if (errorCode.startsWith('BSNG-5')) {
+        userFriendlyMsg = `Server error: ${errorMsg}. Please try again later.`;
       }
-    } else {
-      // Try alternative API format (BulkSMSNigeria format)
-      const altResponse = await fetch('https://www.bulksmsnigeria.com/api/v1/sms/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          api_token: config.password || config.apiKey,
-          to: recipients,
-          from: config.senderId,
-          body: message,
-        }),
+      
+      results.errors.push({ 
+        to: 'all', 
+        error: data.error || data,
+        message: `[${errorCode}] ${userFriendlyMsg}`
       });
-
-      let altData;
-      try {
-        altData = await altResponse.json();
-      } catch (jsonError) {
-        const text = await altResponse.text();
-        console.error('Alternative SMS API returned non-JSON:', text);
-        // Fall through to individual sending
-      }
-
-      if (altResponse.ok && altData && altData.data) {
-        results.success = messages.length;
-      } else if (altData && altData.error) {
-        console.error('Alternative SMS API Error:', altData.error);
-        results.errors.push({ to: 'all', error: altData, message: altData.error || 'Alternative API failed' });
-      } else {
-        // Send individually if bulk fails
-        for (const msg of messages) {
-          try {
-            const individualResponse = await fetch('https://api.ebulksms.com:8080/sendsms.json', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                username: config.username,
-                apikey: config.password || config.apiKey,
-                sender: config.senderId,
-                messagetext: msg.message,
-                flash: 0,
-                recipients: formatPhoneNumber(msg.to),
-              }),
-            });
-
-            const individualData = await individualResponse.json();
-
-            if (individualResponse.ok && (individualData.response?.status === 'SUCCESS' || individualData.response?.status === 'OK')) {
-              results.success++;
-            } else {
-              results.failed++;
-              const errorMsg = JSON.stringify(individualData);
-              console.error(`SMS send failed for ${msg.to}:`, errorMsg);
-              results.errors.push({ to: msg.to, error: individualData, message: errorMsg });
-            }
-          } catch (error: any) {
-            results.failed++;
-            const errorMsg = error.message || String(error);
-            console.error(`SMS send error for ${msg.to}:`, errorMsg);
-            results.errors.push({ to: msg.to, error: error.message || error, message: errorMsg });
-          }
-        }
-      }
+    } else if (response.ok) {
+      // Unexpected success format but HTTP 200
+      results.success = messages.length;
+      console.warn('Unexpected response format, assuming success:', data);
+    } else {
+      // HTTP error
+      results.failed = messages.length;
+      const errorMsg = data.error?.message || data.message || `HTTP ${response.status}: ${response.statusText}`;
+      console.error('BulkSMS Nigeria HTTP Error:', response.status, errorMsg);
+      results.errors.push({ 
+        to: 'all', 
+        error: data,
+        message: errorMsg
+      });
     }
   } catch (error: any) {
-    console.error('Bulk SMS Nigeria API Error:', error);
+    console.error('BulkSMS Nigeria API Exception:', error);
     const errorMsg = error.message || String(error);
     results.errors.push({ to: 'all', error: error, message: errorMsg });
-    
-    // If bulk sending fails, try individual messages
+    results.failed = messages.length;
+
+    // If bulk sending fails, try sending individually as fallback
+    console.log('Attempting to send messages individually as fallback...');
     for (const msg of messages) {
       try {
-        const formatPhoneNumber = (phone: string): string => {
-          let formatted = phone.replace(/\+|\s/g, '');
-          if (formatted.startsWith('0')) {
-            formatted = '234' + formatted.substring(1);
-          }
-          if (!formatted.startsWith('234')) {
-            formatted = '234' + formatted;
-          }
-          return formatted;
-        };
-
-        const response = await fetch('https://api.ebulksms.com:8080/sendsms.json', {
+        const formattedPhone = formatPhoneNumber(msg.to);
+        const individualResponse = await fetch('https://www.bulksmsnigeria.com/api/v2/sms', {
           method: 'POST',
           headers: {
+            'Authorization': `Bearer ${apiToken}`,
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
           },
           body: JSON.stringify({
-            username: config.username,
-            apikey: config.password || config.apiKey,
-            sender: config.senderId,
-            messagetext: msg.message,
-            flash: 0,
-            recipients: formatPhoneNumber(msg.to),
+            from: config.senderId.substring(0, 11),
+            to: formattedPhone,
+            body: msg.message,
           }),
         });
 
-        const data = await response.json();
+        const individualData = await individualResponse.json();
 
-        if (response.ok && (data.response?.status === 'SUCCESS' || data.response?.status === 'OK')) {
+        if (individualData.status === 'success' && individualData.code === 'BSNG-0000') {
           results.success++;
+          results.failed = Math.max(0, results.failed - 1);
         } else {
-          results.failed++;
-          results.errors.push({ to: msg.to, error: data });
+          const errorMsg = individualData.error?.message || individualData.message || `Error ${individualData.code || 'Unknown'}`;
+          console.error(`Individual SMS send failed for ${msg.to}:`, individualData.code, errorMsg);
+          results.errors.push({ 
+            to: msg.to, 
+            error: individualData.error || individualData,
+            message: `[${individualData.code || 'BSNG-UNKNOWN'}] ${errorMsg}`
+          });
         }
       } catch (err: any) {
         results.failed++;
-        results.errors.push({ to: msg.to, error: err.message });
+        const errMsg = err.message || String(err);
+        console.error(`Individual SMS exception for ${msg.to}:`, errMsg);
+        results.errors.push({ to: msg.to, error: err, message: errMsg });
       }
     }
   }

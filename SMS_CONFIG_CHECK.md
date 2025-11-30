@@ -4,13 +4,18 @@
 
 To send SMS messages, you need to configure the following variables in your `.env.local` file:
 
-### For Bulk SMS Nigeria (Recommended):
+### For Bulk SMS Nigeria v2 API (Recommended):
 ```env
 SMS_PROVIDER=bulksmsnigeria
-SMS_USERNAME=your-bulk-sms-username
-SMS_PASSWORD=your-bulk-sms-api-key-or-password
+SMS_PASSWORD=your-api-token-from-bulksmsnigeria-dashboard
 SMS_SENDER_ID=your-approved-sender-id
 ```
+
+**Note:** 
+- `SMS_USERNAME` is NOT required for Bulk SMS Nigeria v2 API
+- `SMS_PASSWORD` should contain your **API Token** (Bearer token) from your BulkSMS Nigeria dashboard
+- Get your API token from: https://www.bulksmsnigeria.com/dashboard/settings
+- Your `SMS_SENDER_ID` must be approved/registered (max 11 characters, e.g., "AMAZINGGRACE")
 
 ### Common Issues:
 
@@ -32,10 +37,15 @@ SMS_SENDER_ID=your-approved-sender-id
 
 ### How to Get Bulk SMS Nigeria Credentials:
 
-1. Sign up at [eBulkSMS](https://www.ebulksms.com/) or [BulkSMSNigeria](https://www.bulksmsnigeria.com/)
-2. Get your username and API key/password from your account dashboard
-3. Register/approve a sender ID (usually your organization name like "CHURCH" or "AMAZINGGRACE")
-4. Add these to your `.env.local` file
+1. Sign up at [BulkSMS Nigeria](https://www.bulksmsnigeria.com/)
+2. Go to Dashboard Settings to get your **API Token**
+3. Register/approve a sender ID (usually your organization name like "AMAZINGGRACE" - max 11 characters)
+4. Add these to your `.env.local` file:
+   ```
+   SMS_PROVIDER=bulksmsnigeria
+   SMS_PASSWORD=your-api-token-here
+   SMS_SENDER_ID=your-approved-sender-id
+   ```
 
 ### Testing Your Configuration:
 
