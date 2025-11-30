@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import Member from '@/lib/models/Member';
 import Family from '@/lib/models/Family';
+import mongoose from 'mongoose';
 
 // Mark route as dynamic since it uses authentication and database
 export const dynamic = 'force-dynamic';
@@ -33,20 +34,20 @@ async function handler(req: NextRequest, { user }: { user: any }) {
       await family.save();
 
       // Update head of family with familyId
-      headMember.familyId = family._id;
+      headMember.familyId = family._id as mongoose.Types.ObjectId;
       await headMember.save();
 
       // Create and link other family members
-      const memberIds = [headMember._id];
+      const memberIds: mongoose.Types.ObjectId[] = [headMember._id as mongoose.Types.ObjectId];
       if (members && members.length > 0) {
         for (const memberData of members) {
           const member = new Member({
             ...memberData,
-            familyId: family._id,
+            familyId: family._id as mongoose.Types.ObjectId,
             address: address, // Use family address
           });
           await member.save();
-          memberIds.push(member._id);
+          memberIds.push(member._id as mongoose.Types.ObjectId);
         }
       }
 

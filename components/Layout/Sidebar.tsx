@@ -13,7 +13,8 @@ import {
   DollarSign,
   GraduationCap,
   LogOut,
-  X
+  X,
+  Activity
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +28,7 @@ const menuItems = [
   { href: '/dashboard/sermons', label: 'Sermons', icon: BookOpen },
   { href: '/dashboard/finance', label: 'Finance', icon: DollarSign, emoji: '💰' },
   { href: '/dashboard/biblestudy', label: 'Bible Study', icon: GraduationCap, emoji: '📚' },
+  { href: '/audit-logs', label: 'Audit Logs', icon: Activity },
 ];
 
 interface SidebarProps {

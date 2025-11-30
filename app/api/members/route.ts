@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import Member from '@/lib/models/Member';
+import { logActionFromRequest, AuditActions } from '@/lib/audit';
+import mongoose from 'mongoose';
 
 // Mark route as dynamic since it uses authentication and database
 export const dynamic = 'force-dynamic';
@@ -39,6 +41,20 @@ async function handler(req: NextRequest, { user }: { user: any }) {
     const data = await req.json();
     const member = new Member(data);
     await member.save();
+    
+    // Log the action
+    await logActionFromRequest(
+      user,
+      AuditActions.CREATE_MEMBER,
+      'Member',
+      {
+        entityId: (member._id as mongoose.Types.ObjectId).toString(),
+        entityName: member.fullName,
+        ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined,
+        userAgent: req.headers.get('user-agent') || undefined,
+      }
+    );
+    
     return NextResponse.json({ member }, { status: 201 });
   }
 

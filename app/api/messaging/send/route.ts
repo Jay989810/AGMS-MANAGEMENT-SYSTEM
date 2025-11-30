@@ -3,6 +3,9 @@ import { requireAuth } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import Member from '@/lib/models/Member';
 import { sendEmail, generateBroadcastEmail, generateBirthdayEmail } from '@/lib/email';
+import { sendSMS } from '@/lib/sms';
+import { sendWhatsApp } from '@/lib/whatsapp';
+import { logActionFromRequest, AuditActions } from '@/lib/audit';
 
 // Mark route as dynamic since it uses authentication and database
 export const dynamic = 'force-dynamic';
@@ -11,8 +14,9 @@ async function handler(req: NextRequest, { user }: { user: any }) {
   await connectDB();
 
   try {
-    const { type, recipients, subject, message, memberId } = await req.json();
+    const { type, recipients, subject, message, memberId, channel } = await req.json();
 
+    // Birthday message (email only for now)
     if (type === 'birthday' && memberId) {
       const member = await Member.findById(memberId);
       if (!member || !member.email) {
@@ -28,6 +32,7 @@ async function handler(req: NextRequest, { user }: { user: any }) {
       return NextResponse.json({ success: true, message: 'Birthday email sent' });
     }
 
+    // Broadcast messages (Email, SMS, or WhatsApp)
     if (type === 'broadcast') {
       if (!subject || !message) {
         return NextResponse.json(
@@ -36,43 +41,193 @@ async function handler(req: NextRequest, { user }: { user: any }) {
         );
       }
 
-      let emails: string[] = [];
+      // Get recipient list
+      let memberList: any[] = [];
 
       if (recipients === 'all') {
-        const members = await Member.find({ email: { $exists: true, $ne: '' } });
-        emails = members.map((m) => m.email!).filter(Boolean);
-      } else if (recipients === 'active') {
-        const members = await Member.find({
-          membershipStatus: 'Active',
-          email: { $exists: true, $ne: '' },
+        memberList = await Member.find({
+          $or: [
+            { email: { $exists: true, $ne: '' } },
+            { phone: { $exists: true, $ne: '' } }
+          ]
         });
-        emails = members.map((m) => m.email!).filter(Boolean);
+      } else if (recipients === 'active') {
+        memberList = await Member.find({
+          membershipStatus: 'Active',
+          $or: [
+            { email: { $exists: true, $ne: '' } },
+            { phone: { $exists: true, $ne: '' } }
+          ]
+        });
       } else if (Array.isArray(recipients)) {
-        emails = recipients;
+        memberList = await Member.find({ _id: { $in: recipients } });
       }
 
-      if (emails.length === 0) {
+      if (memberList.length === 0) {
         return NextResponse.json(
-          { error: 'No valid email addresses found' },
+          { error: 'No valid recipients found' },
           { status: 400 }
         );
       }
 
-      const html = generateBroadcastEmail(subject, message);
+      const channelType = channel || 'email'; // email, sms, whatsapp
 
-      // Send emails in batches to avoid rate limits
-      const batchSize = 10;
-      for (let i = 0; i < emails.length; i += batchSize) {
-        const batch = emails.slice(i, i + batchSize);
-        await Promise.all(
-          batch.map((email) => sendEmail(email, subject, html))
-        );
+      // Send via Email
+      if (channelType === 'email') {
+        const emails = memberList
+          .map((m) => m.email)
+          .filter((email) => email && email.trim() !== '');
+
+        if (emails.length === 0) {
+          return NextResponse.json(
+            { error: 'No valid email addresses found' },
+            { status: 400 }
+          );
+        }
+
+        const html = generateBroadcastEmail(subject, message);
+
+        // Send emails in batches to avoid rate limits
+        const batchSize = 10;
+        let sent = 0;
+        for (let i = 0; i < emails.length; i += batchSize) {
+          const batch = emails.slice(i, i + batchSize);
+          await Promise.all(
+            batch.map((email) => sendEmail(email, subject, html))
+          );
+          sent += batch.length;
+        }
+
+        return NextResponse.json({
+          success: true,
+          message: `Email sent to ${sent} recipients`,
+          sent,
+          total: emails.length,
+        });
       }
 
-      return NextResponse.json({
-        success: true,
-        message: `Email sent to ${emails.length} recipients`,
-      });
+      // Send via SMS
+      if (channelType === 'sms') {
+        const smsConfig = {
+          provider: (process.env.SMS_PROVIDER || 'bulksmsnigeria') as 'bulksmsnigeria' | 'twilio' | 'africas_talking' | 'termii',
+          apiKey: process.env.SMS_API_KEY,
+          password: process.env.SMS_PASSWORD || process.env.SMS_API_KEY, // Password or API key
+          accountSid: process.env.SMS_ACCOUNT_SID,
+          authToken: process.env.SMS_AUTH_TOKEN,
+          username: process.env.SMS_USERNAME,
+          senderId: process.env.SMS_SENDER_ID,
+          from: process.env.SMS_FROM,
+        };
+
+        const phones = memberList
+          .map((m) => m.phone)
+          .filter((phone) => phone && phone.trim() !== '');
+
+        if (phones.length === 0) {
+          return NextResponse.json(
+            { error: 'No valid phone numbers found' },
+            { status: 400 }
+          );
+        }
+
+        // Format message for SMS (subject + message, max 160 chars per SMS)
+        const fullMessage = subject ? `${subject}\n\n${message}` : message;
+        const smsMessages = phones.map((phone) => ({
+          to: phone,
+          message: fullMessage.substring(0, 160), // SMS character limit
+        }));
+
+        const result = await sendSMS(smsMessages, smsConfig);
+
+        // Log the action
+        await logActionFromRequest(
+          user,
+          AuditActions.SEND_SMS,
+          'Message',
+          {
+            entityName: `SMS: ${subject}`,
+            details: {
+              recipients: phones.length,
+              sent: result.success,
+              failed: result.failed,
+              provider: 'bulksmsnigeria',
+              message: message.substring(0, 100), // First 100 chars
+            },
+            ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined,
+            userAgent: req.headers.get('user-agent') || undefined,
+          }
+        );
+
+        return NextResponse.json({
+          success: result.success > 0,
+          message: `SMS sent to ${result.success} recipients, ${result.failed} failed`,
+          sent: result.success,
+          failed: result.failed,
+          total: phones.length,
+          errors: result.errors,
+        });
+      }
+
+      // Send via WhatsApp
+      if (channelType === 'whatsapp') {
+        const whatsappConfig = {
+          provider: (process.env.WHATSAPP_PROVIDER || 'twilio_whatsapp') as 'whatsapp_business' | 'twilio_whatsapp' | '360dialog' | 'chatapi',
+          apiKey: process.env.WHATSAPP_API_KEY,
+          phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
+          accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
+          accountSid: process.env.WHATSAPP_ACCOUNT_SID,
+          authToken: process.env.WHATSAPP_AUTH_TOKEN,
+          from: process.env.WHATSAPP_FROM,
+        };
+
+        const phones = memberList
+          .map((m) => m.phone)
+          .filter((phone) => phone && phone.trim() !== '');
+
+        if (phones.length === 0) {
+          return NextResponse.json(
+            { error: 'No valid phone numbers found' },
+            { status: 400 }
+          );
+        }
+
+        const whatsappMessages = phones.map((phone) => ({
+          to: phone,
+          message: `${subject}\n\n${message}`,
+          type: 'text' as const,
+        }));
+
+        const result = await sendWhatsApp(whatsappMessages, whatsappConfig);
+
+        // Log the action
+        await logActionFromRequest(
+          user,
+          AuditActions.SEND_WHATSAPP,
+          'Message',
+          {
+            entityName: `WhatsApp: ${subject}`,
+            details: {
+              recipients: phones.length,
+              sent: result.success,
+              failed: result.failed,
+              message: message.substring(0, 100), // First 100 chars
+            },
+            ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined,
+            userAgent: req.headers.get('user-agent') || undefined,
+          }
+        );
+
+        return NextResponse.json({
+          success: result.success > 0,
+          message: `WhatsApp message sent to ${result.success} recipients, ${result.failed} failed`,
+          sent: result.success,
+          failed: result.failed,
+          total: phones.length,
+          errors: result.errors,
+        });
+      }
+
+      return NextResponse.json({ error: 'Invalid channel type' }, { status: 400 });
     }
 
     return NextResponse.json({ error: 'Invalid message type' }, { status: 400 });
@@ -86,5 +241,3 @@ async function handler(req: NextRequest, { user }: { user: any }) {
 }
 
 export const POST = requireAuth(handler);
-
-

@@ -33,6 +33,7 @@ export async function getAuthUser(request: NextRequest): Promise<JWTPayload | nu
   return payload;
 }
 
+
 export function requireAuth(handler: (req: NextRequest, context: any) => Promise<Response>) {
   return async (req: NextRequest, context: any) => {
     const user = await getAuthUser(req);
@@ -41,7 +42,18 @@ export function requireAuth(handler: (req: NextRequest, context: any) => Promise
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    return handler(req, { ...context, user });
+    // Get full user details for audit logging
+    let userDetails: any = null;
+    try {
+      const { default: connectDB } = await import('./db');
+      const { default: User } = await import('./models/User');
+      await connectDB();
+      userDetails = await User.findById(user.userId).lean();
+    } catch (error) {
+      // Continue even if user fetch fails
+    }
+
+    return handler(req, { ...context, user: { ...user, ...userDetails } });
   };
 }
 

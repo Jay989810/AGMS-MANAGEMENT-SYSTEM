@@ -194,7 +194,7 @@ export default function EditMemberPage() {
                 <Select
                   label="Gender *"
                   value={formData.gender}
-                  onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, gender: e.target.value as 'Male' | 'Female' })}
                   options={[
                     { value: 'Male', label: 'Male' },
                     { value: 'Female', label: 'Female' },

@@ -1,0 +1,38 @@
+ICON FILES NEEDED
+
+Please create and add these icon files to the /public folder:
+
+1. icon-192.png (192x192 pixels)
+   - Square PNG image
+   - Recommended: Your church logo on navy blue background (#1a237e)
+   
+2. icon-512.png (512x512 pixels)
+   - Square PNG image  
+   - Same design as icon-192.png but larger
+
+These icons will be used for:
+- PWA installation on Android/iOS
+- App icon when installed on home screen
+- Browser tab icon
+
+QUICK CREATION OPTIONS:
+
+Option 1: Use Online Tools
+- https://realfavicongenerator.net/
+- https://www.favicon-generator.org/
+- Upload your logo and generate icons
+
+Option 2: Use Design Tools
+- Canva: Create 512x512 design, export as PNG
+- Figma: Design icons, export at both sizes
+- Photoshop/GIMP: Create square canvas, design, export PNG
+
+Option 3: Simple Text Icon
+- Create a square image with "AGCMS" text
+- Use navy blue background (#1a237e)
+- White or gold text
+- Export at 192x192 and 512x512
+
+Once created, place both files in the /public folder.
+The app will automatically use them for PWA installation.
+
