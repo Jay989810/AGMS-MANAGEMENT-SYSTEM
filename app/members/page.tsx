@@ -99,7 +99,9 @@ export default function MembersPage() {
     // Create a map of familyId to family object
     const familyMap = new Map();
     families.forEach(family => {
-      familyMap.set(family._id.toString(), family);
+      if (family && family._id) {
+        familyMap.set(family._id.toString(), family);
+      }
     });
 
     // Group members by family
@@ -108,10 +110,24 @@ export default function MembersPage() {
         const familyId = member.familyId.toString();
         if (!grouped.families[familyId]) {
           const family = familyMap.get(familyId);
-          grouped.families[familyId] = {
-            family: family || { familyName: 'Unknown Family', _id: familyId },
-            members: [],
-          };
+          if (family) {
+            grouped.families[familyId] = {
+              family: family,
+              members: [],
+            };
+          } else {
+            // Family not found in families list, create a placeholder with member's name
+            const headMember = members.find(m => m.familyId?.toString() === familyId && m.relationship === 'Head') || member;
+            grouped.families[familyId] = {
+              family: { 
+                familyName: headMember.fullName ? `${headMember.fullName} Family` : 'Family', 
+                _id: familyId,
+                phone: headMember.phone || '',
+                address: headMember.address || '',
+              },
+              members: [],
+            };
+          }
         }
         grouped.families[familyId].members.push(member);
       } else {
@@ -296,8 +312,10 @@ export default function MembersPage() {
                 <tbody>
                   {/* Render Families */}
                   {Object.values(groupedData.families).map(({ family, members: familyMembers }) => {
-                    const isExpanded = expandedFamilies.has(family._id?.toString() || '');
+                    const familyIdStr = family._id?.toString() || '';
+                    const isExpanded = expandedFamilies.has(familyIdStr);
                     const headOfFamily = familyMembers.find((m: any) => m.relationship === 'Head') || familyMembers[0];
+                    const familyName = family.familyName || (headOfFamily ? `${headOfFamily.fullName} Family` : 'Family');
                     
                     return (
                       <React.Fragment key={family._id?.toString() || 'unknown'}>
@@ -313,7 +331,7 @@ export default function MembersPage() {
                           </td>
                           <td className="py-3 px-2 sm:px-4 font-semibold text-sm">
                             <div className="flex flex-col">
-                              <span className="text-navy">{family.familyName || 'Family'}</span>
+                              <span className="text-navy">{familyName}</span>
                               <span className="text-xs text-gray-500 font-normal">{familyMembers.length} member{familyMembers.length !== 1 ? 's' : ''}</span>
                               {headOfFamily && (
                                 <span className="text-xs text-gray-500 md:hidden font-normal">{headOfFamily.gender} • {headOfFamily.phone}</span>
@@ -338,7 +356,7 @@ export default function MembersPage() {
                               <Button
                                 variant="danger"
                                 className="p-1.5 sm:p-2"
-                                onClick={() => handleDeleteFamily(family._id?.toString() || '', family.familyName || 'Family')}
+                                onClick={() => handleDeleteFamily(familyIdStr, familyName)}
                               >
                                 <Trash2 size={14} className="sm:w-4 sm:h-4" />
                               </Button>

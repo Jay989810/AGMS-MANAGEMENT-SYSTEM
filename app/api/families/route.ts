@@ -20,16 +20,55 @@ async function handler(req: NextRequest) {
       }
 
       const families = await Family.find(query)
-        .populate('headOfFamily', 'fullName phone email')
-        .populate('members', 'fullName phone email membershipStatus')
+        .populate({
+          path: 'headOfFamily',
+          select: 'fullName phone email',
+          options: { strictPopulate: false }
+        })
+        .populate({
+          path: 'members',
+          select: 'fullName phone email membershipStatus relationship',
+          options: { strictPopulate: false }
+        })
         .sort({ createdAt: -1 })
         .lean();
 
-      return NextResponse.json({ families });
+      // Filter out any null references and ensure familyName exists
+      const sanitizedFamilies = families.map((family: any) => {
+        // If headOfFamily is null or deleted, we need to handle it
+        if (!family.headOfFamily && family.headOfFamily !== null) {
+          // Head of family was deleted, try to get first member as head
+          if (family.members && family.members.length > 0) {
+            family.headOfFamily = family.members[0];
+          }
+        }
+
+        // Filter out null members
+        if (family.members) {
+          family.members = family.members.filter((m: any) => m !== null);
+        }
+
+        // Ensure familyName always exists
+        if (!family.familyName) {
+          // Try to generate from head of family name
+          if (family.headOfFamily && family.headOfFamily.fullName) {
+            family.familyName = `${family.headOfFamily.fullName} Family`;
+          } else if (family.members && family.members.length > 0 && family.members[0].fullName) {
+            family.familyName = `${family.members[0].fullName} Family`;
+          } else {
+            family.familyName = 'Unnamed Family';
+          }
+        }
+
+        return family;
+      });
+
+      return NextResponse.json({ families: sanitizedFamilies });
     } catch (error: any) {
       console.error('Error fetching families:', error);
+      console.error('Error stack:', error.stack);
       return NextResponse.json(
-        { error: error.message || 'Failed to fetch families' },
+        { error: error.message || 'Failed to fetch families', details: error.toString() },
         { status: 500 }
       );
     }
