@@ -120,29 +120,27 @@ export function formatPhoneNumberForSMS(phone: string): string | null {
 }
 
 /**
- * Bulk SMS Nigeria Integration (v2 API)
- * Uses hardcoded Bearer token for debugging authentication issues
+ * Bulk SMS Nigeria Integration (V3 API)
+ * Uses V3 Bearer token authentication
  * Documentation: https://www.bulksmsnigeria.com/api
- * Base URL: https://www.bulksmsnigeria.com/api/v2
+ * Base URL: https://www.bulksmsnigeria.com/api/v3
+ * 
+ * V3 API Notes:
+ * - Authentication via Bearer token in Authorization header (NOT in body)
+ * - Endpoint: /api/v3/sms or /api/v3/sms/send
+ * - Body parameters: from, to, body (NO api_token in body)
  */
 async function sendViaBulkSMSNigeria(
   messages: SMSMessage[],
   config: SMSConfig
 ): Promise<{ success: number; failed: number; errors: any[] }> {
   // ============================================================================
-  // HARDCODED BEARER TOKEN FOR DEBUGGING AUTHENTICATION ISSUES
+  // BULKSMS NIGERIA API V3 - BEARER TOKEN
   // ============================================================================
-  // TODO: Replace 'YOUR_BEARER_TOKEN_HERE' with your actual Bearer token
-  // 
-  // How to get your Bearer token:
-  // 1. Log in to BulkSMS Nigeria dashboard: https://www.bulksmsnigeria.com
-  // 2. Navigate to API Settings or Bearer API Tokens section
-  // 3. Generate or copy your Bearer token
-  // 4. Paste it below (no quotes needed)
-  //
-  // Example: const HARDCODED_BEARER_TOKEN = 'abc123xyz456def789...';
+  // V3 Bearer Token from BulkSMS Nigeria dashboard
+  // This is a V3 token - ensure you're using the V3 API endpoint
   // ============================================================================
-  const HARDCODED_BEARER_TOKEN = 'YOUR_BEARER_TOKEN_HERE';
+  const HARDCODED_BEARER_TOKEN = '64|3sOUHaYqsNJOtM1Ci1aVObOWSl0ipVeNF0VT8WIK70b5c1b6'.trim();
   
   // Sender ID (max 11 characters)
   const senderId = config.senderId ? config.senderId.substring(0, 11) : 'CHURCH';
@@ -191,33 +189,75 @@ async function sendViaBulkSMSNigeria(
     console.warn(`⚠️ ${invalidNumbers.length} invalid phone number(s) skipped:`, invalidNumbers);
   }
 
-  // Use v2 API endpoint only
-  const API_ENDPOINT = 'https://www.bulksmsnigeria.com/api/v2/sms';
+  // Use V3 API endpoint with fallback to /send variant
+  const API_ENDPOINT_PRIMARY = 'https://www.bulksmsnigeria.com/api/v3/sms';
+  const API_ENDPOINT_FALLBACK = 'https://www.bulksmsnigeria.com/api/v3/sms/send';
   
   try {
-    console.log('🌐 Calling BulkSMS Nigeria v2 API...');
+    console.log('🌐 Calling BulkSMS Nigeria V3 API...');
     console.log('📋 Request payload:', {
       from: senderId,
       to: recipients.substring(0, 50) + (recipients.length > 50 ? '...' : ''),
       body: message.substring(0, 50) + (message.length > 50 ? '...' : ''),
       recipientCount: formattedNumbers.length
     });
+    console.log('🔐 Using V3 Bearer token (first 15 chars):', HARDCODED_BEARER_TOKEN.substring(0, 15) + '...');
     
-    const response = await fetch(API_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${HARDCODED_BEARER_TOKEN}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        from: senderId,
-        to: recipients,
-        body: message,
-        // Optional: gateway parameter
-        // gateway: 'direct-corporate'
-      }),
-    });
+    // Prepare request body - V3 uses from, to, body (NO api_token in body)
+    const requestBody = {
+      from: senderId,
+      to: recipients,
+      body: message,
+    };
+    
+    console.log('📤 Full request body:', JSON.stringify(requestBody, null, 2));
+    
+    // Try primary V3 endpoint first
+    let response: Response;
+    let endpointUsed = API_ENDPOINT_PRIMARY;
+    
+    try {
+      response = await fetch(API_ENDPOINT_PRIMARY, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${HARDCODED_BEARER_TOKEN}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+      
+      // If 404, try fallback endpoint
+      if (response.status === 404) {
+        console.log('⚠️ Primary V3 endpoint returned 404, trying fallback endpoint...');
+        endpointUsed = API_ENDPOINT_FALLBACK;
+        response = await fetch(API_ENDPOINT_FALLBACK, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${HARDCODED_BEARER_TOKEN}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+      }
+    } catch (fetchError: any) {
+      // If primary endpoint fails, try fallback
+      console.log('⚠️ Primary V3 endpoint failed, trying fallback endpoint...', fetchError.message);
+      endpointUsed = API_ENDPOINT_FALLBACK;
+      response = await fetch(API_ENDPOINT_FALLBACK, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${HARDCODED_BEARER_TOKEN}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+    }
+    
+    console.log(`✅ API call successful to: ${endpointUsed}`);
+    console.log(`📊 HTTP Status: ${response.status} ${response.statusText}`);
 
     // Parse response
     let data: any;
@@ -226,7 +266,8 @@ async function sendViaBulkSMSNigeria(
     try {
       data = JSON.parse(responseText);
     } catch (jsonError) {
-      console.error('❌ BulkSMS Nigeria API returned non-JSON response');
+      console.error('❌ BulkSMS Nigeria V3 API returned non-JSON response');
+      console.error('📄 Endpoint used:', endpointUsed);
       console.error('📄 Response status:', response.status, response.statusText);
       console.error('📄 Response body:', responseText);
       
@@ -243,12 +284,15 @@ async function sendViaBulkSMSNigeria(
       return results;
     }
 
-    // Log full response for debugging
-    console.log('📥 BulkSMS Nigeria v2 API Response:');
+    // Log full response for debugging (V3 API)
+    console.log('📥 BulkSMS Nigeria V3 API Response:');
+    console.log('   Endpoint used:', endpointUsed);
     console.log('   HTTP Status:', response.status, response.statusText);
-    console.log('   Response Body:', JSON.stringify(data, null, 2));
+    console.log('   Response Headers:', Object.fromEntries(response.headers.entries()));
+    console.log('   Full Response Body:', JSON.stringify(data, null, 2));
+    console.log('   Response Keys:', Object.keys(data));
 
-    // Parse response according to BulkSMS Nigeria v2 API documentation
+    // Parse response according to BulkSMS Nigeria V3 API documentation
     // Success format: {"status": "success", "code": "BSNG-0000", "data": {...}}
     // Error format: {"status": "error", "code": "BSNG-XXXX", "error": {...}}
     
@@ -358,19 +402,54 @@ async function sendViaBulkSMSNigeria(
         const originalMessage = messages.find(m => formatPhoneNumberForSMS(m.to) === phoneNumber) || messages[0];
         
         try {
-          const individualResponse = await fetch(API_ENDPOINT, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${HARDCODED_BEARER_TOKEN}`,
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-            body: JSON.stringify({
-              from: senderId,
-              to: phoneNumber,
-              body: originalMessage.message,
-            }),
-          });
+          // Use V3 endpoint for individual sends (try primary first, then fallback)
+          let individualResponse: Response;
+          try {
+            individualResponse = await fetch(API_ENDPOINT_PRIMARY, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${HARDCODED_BEARER_TOKEN}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              body: JSON.stringify({
+                from: senderId,
+                to: phoneNumber,
+                body: originalMessage.message,
+              }),
+            });
+            
+            if (individualResponse.status === 404) {
+              individualResponse = await fetch(API_ENDPOINT_FALLBACK, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${HARDCODED_BEARER_TOKEN}`,
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                  from: senderId,
+                  to: phoneNumber,
+                  body: originalMessage.message,
+                }),
+              });
+            }
+          } catch {
+            // Try fallback endpoint
+            individualResponse = await fetch(API_ENDPOINT_FALLBACK, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${HARDCODED_BEARER_TOKEN}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              body: JSON.stringify({
+                from: senderId,
+                to: phoneNumber,
+                body: originalMessage.message,
+              }),
+            });
+          }
 
           const individualResponseText = await individualResponse.text();
           let individualData: any;
