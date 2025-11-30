@@ -97,7 +97,23 @@ async function sendViaBulkSMSNigeria(
       }),
     });
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (jsonError) {
+      // If response is not JSON, get text
+      const text = await response.text();
+      console.error('Bulk SMS Nigeria API returned non-JSON response:', text);
+      results.failed = messages.length;
+      results.errors.push({ 
+        to: 'all', 
+        error: { status: response.status, statusText: response.statusText, body: text },
+        message: `API Error (${response.status}): ${response.statusText}. Response: ${text.substring(0, 200)}`
+      });
+      return results;
+    }
+
+    console.log('Bulk SMS Nigeria API Response:', JSON.stringify(data, null, 2));
 
     if (response.ok && data.response) {
       // eBulkSMS returns response with status
@@ -107,9 +123,13 @@ async function sendViaBulkSMSNigeria(
         results.success = recipientCount;
       } else {
         results.failed = messages.length;
-        const errorMsg = JSON.stringify(data.response || data);
-        console.error('Bulk SMS Nigeria Error:', errorMsg);
-        results.errors.push({ to: 'multiple', error: data.response || data, message: errorMsg });
+        const errorMsg = data.response.message || data.response.status || JSON.stringify(data.response || data);
+        console.error('Bulk SMS Nigeria Error Response:', errorMsg);
+        results.errors.push({ 
+          to: 'multiple', 
+          error: data.response || data, 
+          message: errorMsg || 'Unknown error from SMS provider'
+        });
       }
     } else {
       // Try alternative API format (BulkSMSNigeria format)
@@ -126,10 +146,20 @@ async function sendViaBulkSMSNigeria(
         }),
       });
 
-      const altData = await altResponse.json();
+      let altData;
+      try {
+        altData = await altResponse.json();
+      } catch (jsonError) {
+        const text = await altResponse.text();
+        console.error('Alternative SMS API returned non-JSON:', text);
+        // Fall through to individual sending
+      }
 
-      if (altResponse.ok && altData.data) {
+      if (altResponse.ok && altData && altData.data) {
         results.success = messages.length;
+      } else if (altData && altData.error) {
+        console.error('Alternative SMS API Error:', altData.error);
+        results.errors.push({ to: 'all', error: altData, message: altData.error || 'Alternative API failed' });
       } else {
         // Send individually if bulk fails
         for (const msg of messages) {

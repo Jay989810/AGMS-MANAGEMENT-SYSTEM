@@ -171,8 +171,29 @@ async function handler(req: NextRequest, { user }: { user: any }) {
 
       // Send via SMS
       if (channelType === 'sms') {
+        const provider = (process.env.SMS_PROVIDER || 'bulksmsnigeria') as 'bulksmsnigeria' | 'twilio' | 'africas_talking' | 'termii';
+        
+        // Validate required environment variables based on provider
+        if (provider === 'bulksmsnigeria') {
+          if (!process.env.SMS_USERNAME || !process.env.SMS_PASSWORD || !process.env.SMS_SENDER_ID) {
+            const missingVars = [];
+            if (!process.env.SMS_USERNAME) missingVars.push('SMS_USERNAME');
+            if (!process.env.SMS_PASSWORD) missingVars.push('SMS_PASSWORD');
+            if (!process.env.SMS_SENDER_ID) missingVars.push('SMS_SENDER_ID');
+            
+            console.error('Missing SMS configuration:', missingVars.join(', '));
+            return NextResponse.json(
+              { 
+                error: `SMS configuration incomplete. Missing: ${missingVars.join(', ')}. Please check your .env.local file.`,
+                errorMessage: `Missing environment variables: ${missingVars.join(', ')}. Please add these to your .env.local file.`
+              },
+              { status: 400 }
+            );
+          }
+        }
+
         const smsConfig = {
-          provider: (process.env.SMS_PROVIDER || 'bulksmsnigeria') as 'bulksmsnigeria' | 'twilio' | 'africas_talking' | 'termii',
+          provider,
           apiKey: process.env.SMS_API_KEY,
           password: process.env.SMS_PASSWORD || process.env.SMS_API_KEY, // Password or API key
           accountSid: process.env.SMS_ACCOUNT_SID,
@@ -200,7 +221,19 @@ async function handler(req: NextRequest, { user }: { user: any }) {
           message: fullMessage.substring(0, 160), // SMS character limit
         }));
 
-        const result = await sendSMS(smsMessages, smsConfig);
+        let result;
+        try {
+          result = await sendSMS(smsMessages, smsConfig);
+        } catch (smsError: any) {
+          console.error('SMS sending error:', smsError);
+          return NextResponse.json(
+            { 
+              error: smsError.message || 'Failed to send SMS. Please check your SMS configuration.',
+              errorMessage: smsError.message || 'Failed to send SMS. Please verify your SMS credentials in .env.local'
+            },
+            { status: 500 }
+          );
+        }
 
         // Log errors to console for debugging
         if (result.errors && result.errors.length > 0) {
