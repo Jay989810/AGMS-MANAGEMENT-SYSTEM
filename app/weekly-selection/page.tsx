@@ -14,6 +14,11 @@ export default function WeeklySelectionPage() {
   const [selection, setSelection] = useState<any>(null);
   const [channel, setChannel] = useState<'sms' | 'email'>('sms');
   const [message, setMessage] = useState('');
+  
+  // Calculate remaining prayer sends (max 2 per week)
+  const prayerSentCount = selection?.prayerSentCount || 0;
+  const remainingSends = 2 - prayerSentCount;
+  const canSendPrayer = remainingSends > 0;
 
   useEffect(() => {
     fetchSelection();
@@ -171,7 +176,18 @@ export default function WeeklySelectionPage() {
             </Card>
 
             <Card>
-              <h3 className="text-lg lg:text-xl font-semibold text-navy mb-4">Send Weekly Prayer</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg lg:text-xl font-semibold text-navy">Send Weekly Prayer</h3>
+                <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  canSendPrayer 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {canSendPrayer 
+                    ? `${remainingSends} send${remainingSends > 1 ? 's' : ''} remaining` 
+                    : 'All sends used (2/2)'}
+                </div>
+              </div>
               
               <div className="space-y-4 lg:space-y-6">
                 <div>
@@ -222,20 +238,24 @@ export default function WeeklySelectionPage() {
                   </p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex flex-col sm:flex-row gap-3 items-center">
                   <Button
                     variant="primary"
                     onClick={handleSendPrayer}
-                    disabled={sending || selection.prayerSent}
+                    disabled={sending || !canSendPrayer}
                     className="flex items-center justify-center gap-2 w-full sm:w-auto"
                   >
                     <Send size={20} />
-                    {sending ? 'Sending...' : selection.prayerSent ? 'Prayer Already Sent' : 'Send Prayer'}
+                    {sending 
+                      ? 'Sending...' 
+                      : !canSendPrayer 
+                      ? 'All Sends Used (2/2)' 
+                      : `Send Prayer (${remainingSends} remaining)`}
                   </Button>
-                  {selection.prayerSent && (
+                  {prayerSentCount > 0 && (
                     <div className="flex items-center gap-2 text-green-600 text-sm lg:text-base">
                       <span>✓</span>
-                      <span>Prayer sent this week</span>
+                      <span>Prayer sent {prayerSentCount} time{prayerSentCount > 1 ? 's' : ''} this week</span>
                     </div>
                   )}
                 </div>

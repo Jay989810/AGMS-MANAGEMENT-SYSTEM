@@ -6,7 +6,8 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
-import { Mail, Send, Search, X } from 'lucide-react';
+import { Mail, Send, Search, X, FileText } from 'lucide-react';
+import { MESSAGING_TEMPLATES, MessageTemplate } from '@/lib/messaging-templates';
 
 interface Member {
   _id: string;
@@ -47,6 +48,8 @@ export default function MessagingPage() {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [result, setResult] = useState<{ sent: number; failed: number; total: number } | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [showTemplates, setShowTemplates] = useState(false);
 
   useEffect(() => {
     fetchMembers();
@@ -144,6 +147,28 @@ export default function MessagingPage() {
     setFormData({ ...formData, recipients: { type: 'families', ids: newSelected } });
   };
 
+  const handleTemplateSelect = (templateId: string) => {
+    const template = MESSAGING_TEMPLATES.find(t => t.id === templateId);
+    if (template) {
+      setSelectedTemplate(templateId);
+      setFormData({
+        ...formData,
+        subject: template.subject,
+        message: formData.channel === 'email' ? template.emailBody : template.smsBody,
+      });
+      setShowTemplates(false);
+    }
+  };
+
+  const clearTemplate = () => {
+    setSelectedTemplate('');
+    setFormData({
+      ...formData,
+      subject: '',
+      message: '',
+    });
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -221,6 +246,8 @@ export default function MessagingPage() {
       setSelectedMembers([]);
       setSelectedFamilies([]);
       setRecipientType('all');
+      setSelectedTemplate('');
+      setShowTemplates(false);
     } catch (error: any) {
       setError(error.message || 'Failed to send message. Please try again.');
     } finally {
@@ -266,13 +293,105 @@ export default function MessagingPage() {
             <Select
               label="Channel *"
               value={formData.channel}
-              onChange={(e) => setFormData({ ...formData, channel: e.target.value })}
+              onChange={(e) => {
+                const newChannel = e.target.value;
+                // If template is selected, update message based on new channel
+                if (selectedTemplate) {
+                  const template = MESSAGING_TEMPLATES.find(t => t.id === selectedTemplate);
+                  if (template) {
+                    setFormData({
+                      ...formData,
+                      channel: newChannel,
+                      message: newChannel === 'email' ? template.emailBody : template.smsBody,
+                    });
+                  } else {
+                    setFormData({ ...formData, channel: newChannel });
+                  }
+                } else {
+                  setFormData({ ...formData, channel: newChannel });
+                }
+              }}
               options={[
                 { value: 'sms', label: '📱 SMS (Recommended for Nigeria)' },
                 { value: 'email', label: '📧 Email' },
                 { value: 'whatsapp', label: '💬 WhatsApp' },
               ]}
             />
+
+            {/* Message Templates Section */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Message Templates
+                </label>
+                {selectedTemplate && (
+                  <button
+                    type="button"
+                    onClick={clearTemplate}
+                    className="text-sm text-navy hover:text-gold underline"
+                  >
+                    Clear Template
+                  </button>
+                )}
+              </div>
+              
+              {!showTemplates ? (
+                <button
+                  type="button"
+                  onClick={() => setShowTemplates(true)}
+                  className="w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-navy hover:text-navy transition-colors flex items-center justify-center gap-2"
+                >
+                  <FileText size={18} />
+                  <span>{selectedTemplate ? 'Change Template' : 'Select a Template'}</span>
+                </button>
+              ) : (
+                <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-medium text-gray-700">Choose a Template</h3>
+                    <button
+                      type="button"
+                      onClick={() => setShowTemplates(false)}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto">
+                    {MESSAGING_TEMPLATES.map((template) => (
+                      <button
+                        key={template.id}
+                        type="button"
+                        onClick={() => handleTemplateSelect(template.id)}
+                        className={`p-3 text-left border rounded-lg transition-colors ${
+                          selectedTemplate === template.id
+                            ? 'border-navy bg-navy text-white'
+                            : 'border-gray-300 bg-white hover:border-navy hover:bg-navy/5'
+                        }`}
+                      >
+                        <div className="font-medium text-sm mb-1">{template.name}</div>
+                        <div className={`text-xs ${selectedTemplate === template.id ? 'text-gray-200' : 'text-gray-500'}`}>
+                          {template.description}
+                        </div>
+                        <div className={`text-xs mt-1 ${selectedTemplate === template.id ? 'text-gray-300' : 'text-gray-400'}`}>
+                          {template.category}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {selectedTemplate && (
+                    <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                      ✓ Template selected: {MESSAGING_TEMPLATES.find(t => t.id === selectedTemplate)?.name}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              <p className="mt-1 text-xs text-gray-500">
+                Select a template to quickly fill in your message. You can edit it before sending.
+              </p>
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -8,7 +8,8 @@ export interface IWeeklySelection extends Document {
   weekEndDate: Date; // Sunday of the week
   year: number;
   weekNumber: number; // Week number in the year (1-52)
-  prayerSent: boolean;
+  prayerSent: boolean; // Deprecated: kept for backward compatibility
+  prayerSentCount: number; // Number of times prayer has been sent (max 2)
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,6 +53,12 @@ const WeeklySelectionSchema: Schema = new Schema<IWeeklySelection>(
     prayerSent: {
       type: Boolean,
       default: false,
+    },
+    prayerSentCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 2,
     },
   },
   {

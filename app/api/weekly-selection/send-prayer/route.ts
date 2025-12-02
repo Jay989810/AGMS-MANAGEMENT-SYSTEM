@@ -145,9 +145,21 @@ async function handler(req: NextRequest, { user }: { user: any }) {
         );
       }
 
-      // Mark prayer as sent
+      // Mark prayer as sent - allow up to 2 sends per week
       const selectionId = (selection as any)._id?.toString() || selection.id?.toString() || '';
-      await WeeklySelection.findByIdAndUpdate(selectionId, { prayerSent: true });
+      const currentCount = (selection as any).prayerSentCount || 0;
+      
+      if (currentCount >= 2) {
+        return NextResponse.json(
+          { error: 'Prayer has already been sent 2 times this week. Maximum limit reached.' },
+          { status: 400 }
+        );
+      }
+      
+      await WeeklySelection.findByIdAndUpdate(selectionId, { 
+        prayerSent: true, // Keep for backward compatibility
+        prayerSentCount: currentCount + 1 
+      });
 
       // Log the action
       await logActionFromRequest(

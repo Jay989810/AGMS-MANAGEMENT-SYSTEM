@@ -137,6 +137,7 @@ async function handler(req: NextRequest, { user }: { user: any }) {
           year: weekDates.year,
           weekNumber: weekDates.weekNumber,
           prayerSent: false,
+          prayerSentCount: 0,
         });
 
         // Populate the selection
