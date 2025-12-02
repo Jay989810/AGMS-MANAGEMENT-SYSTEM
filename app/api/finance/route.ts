@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import Financial from '@/lib/models/Financial';
+import { logActionFromRequest, AuditActions } from '@/lib/audit';
+import { parseDeviceInfo, formatDeviceInfo } from '@/lib/device-info';
+import mongoose from 'mongoose';
 
 // Mark route as dynamic since it uses authentication and database
 export const dynamic = 'force-dynamic';
@@ -45,6 +48,33 @@ async function handler(req: NextRequest, { user }: { user: any }) {
       .sort({ date: -1 })
       .limit(1000)
       .lean();
+    
+    // Log view action
+    const userAgent = req.headers.get('user-agent') || undefined;
+    const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined;
+    const deviceInfo = parseDeviceInfo(userAgent);
+    
+    await logActionFromRequest(
+      user,
+      AuditActions.VIEW_FINANCES,
+      'Finance',
+      {
+        details: {
+          filters: { category, type, startDate, endDate },
+          resultCount: records.length,
+        },
+        ipAddress,
+        userAgent,
+        deviceType: deviceInfo.deviceType,
+        deviceName: deviceInfo.deviceName,
+        browser: deviceInfo.browser,
+        browserVersion: deviceInfo.browserVersion,
+        os: deviceInfo.os,
+        osVersion: deviceInfo.osVersion,
+        deviceInfo: formatDeviceInfo(deviceInfo),
+      }
+    );
+    
     return NextResponse.json({ records });
   }
 
@@ -75,6 +105,38 @@ async function handler(req: NextRequest, { user }: { user: any }) {
     });
 
     await record.save();
+    
+    // Log create action
+    const userAgent = req.headers.get('user-agent') || undefined;
+    const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined;
+    const deviceInfo = parseDeviceInfo(userAgent);
+    
+    await logActionFromRequest(
+      user,
+      AuditActions.CREATE_FINANCE,
+      'Finance',
+      {
+        entityId: (record._id as mongoose.Types.ObjectId).toString(),
+        entityName: `${data.type} - ${data.category} (${data.amount})`,
+        details: {
+          type: data.type,
+          category: data.category,
+          amount: data.amount,
+          description: data.description,
+          date: data.date,
+        },
+        ipAddress,
+        userAgent,
+        deviceType: deviceInfo.deviceType,
+        deviceName: deviceInfo.deviceName,
+        browser: deviceInfo.browser,
+        browserVersion: deviceInfo.browserVersion,
+        os: deviceInfo.os,
+        osVersion: deviceInfo.osVersion,
+        deviceInfo: formatDeviceInfo(deviceInfo),
+      }
+    );
+    
     return NextResponse.json({ record }, { status: 201 });
   }
 

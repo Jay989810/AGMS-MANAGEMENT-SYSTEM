@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import Sermon from '@/lib/models/Sermon';
+import { logActionFromRequest, AuditActions } from '@/lib/audit';
+import { parseDeviceInfo, formatDeviceInfo } from '@/lib/device-info';
+import mongoose from 'mongoose';
 
 // Mark route as dynamic since it uses authentication and database
 export const dynamic = 'force-dynamic';
@@ -15,6 +18,32 @@ async function handler(req: NextRequest, { user }: { user: any }) {
       .sort({ date: -1 })
       .limit(500)
       .lean();
+    
+    // Log view action
+    const userAgent = req.headers.get('user-agent') || undefined;
+    const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined;
+    const deviceInfo = parseDeviceInfo(userAgent);
+    
+    await logActionFromRequest(
+      user,
+      AuditActions.VIEW_SERMONS,
+      'Sermon',
+      {
+        details: {
+          resultCount: sermons.length,
+        },
+        ipAddress,
+        userAgent,
+        deviceType: deviceInfo.deviceType,
+        deviceName: deviceInfo.deviceName,
+        browser: deviceInfo.browser,
+        browserVersion: deviceInfo.browserVersion,
+        os: deviceInfo.os,
+        osVersion: deviceInfo.osVersion,
+        deviceInfo: formatDeviceInfo(deviceInfo),
+      }
+    );
+    
     return NextResponse.json({ sermons });
   }
 
@@ -39,6 +68,36 @@ async function handler(req: NextRequest, { user }: { user: any }) {
     });
 
     await sermon.save();
+    
+    // Log create action
+    const userAgent = req.headers.get('user-agent') || undefined;
+    const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined;
+    const deviceInfo = parseDeviceInfo(userAgent);
+    
+    await logActionFromRequest(
+      user,
+      AuditActions.CREATE_SERMON,
+      'Sermon',
+      {
+        entityId: (sermon._id as mongoose.Types.ObjectId).toString(),
+        entityName: sermon.title,
+        details: {
+          title: sermon.title,
+          preacher: sermon.preacher,
+          date: sermon.date,
+        },
+        ipAddress,
+        userAgent,
+        deviceType: deviceInfo.deviceType,
+        deviceName: deviceInfo.deviceName,
+        browser: deviceInfo.browser,
+        browserVersion: deviceInfo.browserVersion,
+        os: deviceInfo.os,
+        osVersion: deviceInfo.osVersion,
+        deviceInfo: formatDeviceInfo(deviceInfo),
+      }
+    );
+    
     return NextResponse.json({ sermon }, { status: 201 });
   }
 

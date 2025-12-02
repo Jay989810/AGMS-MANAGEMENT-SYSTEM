@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import Family from '@/lib/models/Family';
+import { logActionFromRequest, AuditActions } from '@/lib/audit';
+import { parseDeviceInfo, formatDeviceInfo } from '@/lib/device-info';
 
 // Mark route as dynamic since it uses authentication and database
 export const dynamic = 'force-dynamic';
 
-async function handler(req: NextRequest) {
+async function handler(req: NextRequest, { user }: { user: any }) {
   await connectDB();
 
   if (req.method === 'GET') {
@@ -63,6 +65,32 @@ async function handler(req: NextRequest) {
         return family;
       });
 
+      // Log view action
+      const userAgent = req.headers.get('user-agent') || undefined;
+      const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined;
+      const deviceInfo = parseDeviceInfo(userAgent);
+      
+      await logActionFromRequest(
+        user,
+        AuditActions.VIEW_FAMILIES,
+        'Family',
+        {
+          details: {
+            searchQuery: search || null,
+            resultCount: sanitizedFamilies.length,
+          },
+          ipAddress,
+          userAgent,
+          deviceType: deviceInfo.deviceType,
+          deviceName: deviceInfo.deviceName,
+          browser: deviceInfo.browser,
+          browserVersion: deviceInfo.browserVersion,
+          os: deviceInfo.os,
+          osVersion: deviceInfo.osVersion,
+          deviceInfo: formatDeviceInfo(deviceInfo),
+        }
+      );
+      
       return NextResponse.json({ families: sanitizedFamilies });
     } catch (error: any) {
       console.error('Error fetching families:', error);

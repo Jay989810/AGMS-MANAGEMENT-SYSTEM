@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import AuditLog from '@/lib/models/AuditLog';
+import { logActionFromRequest, AuditActions } from '@/lib/audit';
+import { parseDeviceInfo, formatDeviceInfo } from '@/lib/device-info';
 
 // Mark route as dynamic since it uses authentication and database
 export const dynamic = 'force-dynamic';
@@ -70,6 +72,40 @@ async function handler(req: NextRequest, { user }: { user: any }) {
         .skip(skip)
         .limit(limit)
         .lean();
+
+      // Log view action (but don't log viewing audit logs to avoid infinite recursion)
+      // Only log if it's not already a view audit logs action
+      const userAgent = req.headers.get('user-agent') || undefined;
+      const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined;
+      const deviceInfo = parseDeviceInfo(userAgent);
+      
+      // Use a simple logAction to avoid recursion
+      try {
+        await logActionFromRequest(
+          user,
+          AuditActions.VIEW_AUDIT_LOGS,
+          'AuditLog',
+          {
+            details: {
+              filters: { action, entityType, userId, startDate, endDate, search },
+              resultCount: logs.length,
+              page,
+            },
+            ipAddress,
+            userAgent,
+            deviceType: deviceInfo.deviceType,
+            deviceName: deviceInfo.deviceName,
+            browser: deviceInfo.browser,
+            browserVersion: deviceInfo.browserVersion,
+            os: deviceInfo.os,
+            osVersion: deviceInfo.osVersion,
+            deviceInfo: formatDeviceInfo(deviceInfo),
+          }
+        );
+      } catch (error) {
+        // Silently fail to avoid breaking audit log viewing
+        console.error('Failed to log audit log view:', error);
+      }
 
       return NextResponse.json({
         logs,

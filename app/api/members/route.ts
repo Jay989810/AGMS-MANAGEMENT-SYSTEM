@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import Member from '@/lib/models/Member';
 import { logActionFromRequest, AuditActions } from '@/lib/audit';
+import { parseDeviceInfo, formatDeviceInfo } from '@/lib/device-info';
 import mongoose from 'mongoose';
 
 // Mark route as dynamic since it uses authentication and database
@@ -34,6 +35,34 @@ async function handler(req: NextRequest, { user }: { user: any }) {
       .sort({ createdAt: -1 })
       .limit(1000)
       .lean();
+    
+    // Log view action
+    const userAgent = req.headers.get('user-agent') || undefined;
+    const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined;
+    const deviceInfo = parseDeviceInfo(userAgent);
+    
+    await logActionFromRequest(
+      user,
+      AuditActions.VIEW_MEMBERS,
+      'Member',
+      {
+        details: {
+          searchQuery: search || null,
+          ministryFilter: ministry || null,
+          resultCount: members.length,
+        },
+        ipAddress,
+        userAgent,
+        deviceType: deviceInfo.deviceType,
+        deviceName: deviceInfo.deviceName,
+        browser: deviceInfo.browser,
+        browserVersion: deviceInfo.browserVersion,
+        os: deviceInfo.os,
+        osVersion: deviceInfo.osVersion,
+        deviceInfo: formatDeviceInfo(deviceInfo),
+      }
+    );
+    
     return NextResponse.json({ members });
   }
 
@@ -43,6 +72,10 @@ async function handler(req: NextRequest, { user }: { user: any }) {
     await member.save();
     
     // Log the action
+    const userAgent = req.headers.get('user-agent') || undefined;
+    const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined;
+    const deviceInfo = parseDeviceInfo(userAgent);
+    
     await logActionFromRequest(
       user,
       AuditActions.CREATE_MEMBER,
@@ -50,8 +83,20 @@ async function handler(req: NextRequest, { user }: { user: any }) {
       {
         entityId: (member._id as mongoose.Types.ObjectId).toString(),
         entityName: member.fullName,
-        ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined,
-        userAgent: req.headers.get('user-agent') || undefined,
+        details: {
+          membershipStatus: member.membershipStatus,
+          email: member.email,
+          phone: member.phone,
+        },
+        ipAddress,
+        userAgent,
+        deviceType: deviceInfo.deviceType,
+        deviceName: deviceInfo.deviceName,
+        browser: deviceInfo.browser,
+        browserVersion: deviceInfo.browserVersion,
+        os: deviceInfo.os,
+        osVersion: deviceInfo.osVersion,
+        deviceInfo: formatDeviceInfo(deviceInfo),
       }
     );
     

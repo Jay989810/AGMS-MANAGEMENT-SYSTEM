@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import Member from '@/lib/models/Member';
 import { logActionFromRequest, AuditActions } from '@/lib/audit';
+import { parseDeviceInfo, formatDeviceInfo } from '@/lib/device-info';
 import mongoose from 'mongoose';
 
 // Mark route as dynamic since it uses authentication and database
@@ -18,6 +19,34 @@ async function handler(req: NextRequest, { user, params }: { user: any; params: 
     if (!member) {
       return NextResponse.json({ error: 'Member not found' }, { status: 404 });
     }
+    
+    // Log view action
+    const userAgent = req.headers.get('user-agent') || undefined;
+    const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined;
+    const deviceInfo = parseDeviceInfo(userAgent);
+    
+    await logActionFromRequest(
+      user,
+      AuditActions.VIEW_MEMBER,
+      'Member',
+      {
+        entityId: id,
+        entityName: member.fullName,
+        details: {
+          viewedMemberId: id,
+        },
+        ipAddress,
+        userAgent,
+        deviceType: deviceInfo.deviceType,
+        deviceName: deviceInfo.deviceName,
+        browser: deviceInfo.browser,
+        browserVersion: deviceInfo.browserVersion,
+        os: deviceInfo.os,
+        osVersion: deviceInfo.osVersion,
+        deviceInfo: formatDeviceInfo(deviceInfo),
+      }
+    );
+    
     return NextResponse.json({ member });
   }
 
@@ -31,6 +60,10 @@ async function handler(req: NextRequest, { user, params }: { user: any; params: 
     const member = await Member.findByIdAndUpdate(id, data, { new: true, runValidators: true });
     
     // Log the update action
+    const userAgent = req.headers.get('user-agent') || undefined;
+    const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined;
+    const deviceInfo = parseDeviceInfo(userAgent);
+    
     await logActionFromRequest(
       user,
       AuditActions.UPDATE_MEMBER,
@@ -43,8 +76,15 @@ async function handler(req: NextRequest, { user, params }: { user: any; params: 
           previousValues: oldMember.toObject(),
           newValues: data,
         },
-        ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined,
-        userAgent: req.headers.get('user-agent') || undefined,
+        ipAddress,
+        userAgent,
+        deviceType: deviceInfo.deviceType,
+        deviceName: deviceInfo.deviceName,
+        browser: deviceInfo.browser,
+        browserVersion: deviceInfo.browserVersion,
+        os: deviceInfo.os,
+        osVersion: deviceInfo.osVersion,
+        deviceInfo: formatDeviceInfo(deviceInfo),
       }
     );
     
@@ -58,6 +98,10 @@ async function handler(req: NextRequest, { user, params }: { user: any; params: 
     }
     
     // Log the delete action before deletion
+    const userAgent = req.headers.get('user-agent') || undefined;
+    const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined;
+    const deviceInfo = parseDeviceInfo(userAgent);
+    
     await logActionFromRequest(
       user,
       AuditActions.DELETE_MEMBER,
@@ -73,8 +117,15 @@ async function handler(req: NextRequest, { user, params }: { user: any; params: 
             membershipStatus: member.membershipStatus,
           },
         },
-        ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined,
-        userAgent: req.headers.get('user-agent') || undefined,
+        ipAddress,
+        userAgent,
+        deviceType: deviceInfo.deviceType,
+        deviceName: deviceInfo.deviceName,
+        browser: deviceInfo.browser,
+        browserVersion: deviceInfo.browserVersion,
+        os: deviceInfo.os,
+        osVersion: deviceInfo.osVersion,
+        deviceInfo: formatDeviceInfo(deviceInfo),
       }
     );
     

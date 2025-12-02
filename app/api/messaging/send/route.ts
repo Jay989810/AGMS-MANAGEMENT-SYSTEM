@@ -7,6 +7,7 @@ import { sendEmail, generateBroadcastEmail, generateBirthdayEmail } from '@/lib/
 import { sendSMS, formatPhoneNumberForSMS } from '@/lib/sms';
 import { sendWhatsApp } from '@/lib/whatsapp';
 import { logActionFromRequest, AuditActions } from '@/lib/audit';
+import { parseDeviceInfo, formatDeviceInfo } from '@/lib/device-info';
 import mongoose from 'mongoose';
 
 // Mark route as dynamic since it uses authentication and database
@@ -179,6 +180,36 @@ async function handler(req: NextRequest, { user }: { user: any }) {
           );
         }
 
+        // Log the email send action
+        const userAgent = req.headers.get('user-agent') || undefined;
+        const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined;
+        const deviceInfo = parseDeviceInfo(userAgent);
+        
+        await logActionFromRequest(
+          user,
+          AuditActions.SEND_EMAIL,
+          'Message',
+          {
+            entityName: `Email: ${subject}`,
+            details: {
+              recipients: membersWithEmails.length,
+              sent,
+              failed,
+              subject,
+              messagePreview: message.substring(0, 100),
+            },
+            ipAddress,
+            userAgent,
+            deviceType: deviceInfo.deviceType,
+            deviceName: deviceInfo.deviceName,
+            browser: deviceInfo.browser,
+            browserVersion: deviceInfo.browserVersion,
+            os: deviceInfo.os,
+            osVersion: deviceInfo.osVersion,
+            deviceInfo: formatDeviceInfo(deviceInfo),
+          }
+        );
+
         return NextResponse.json({
           success: true,
           message: `Email sent to ${sent} recipients${failed > 0 ? `, ${failed} failed` : ''}`,
@@ -330,6 +361,10 @@ async function handler(req: NextRequest, { user }: { user: any }) {
         }
 
         // Log the action
+        const userAgent = req.headers.get('user-agent') || undefined;
+        const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined;
+        const deviceInfo = parseDeviceInfo(userAgent);
+        
         await logActionFromRequest(
           user,
           AuditActions.SEND_SMS,
@@ -344,8 +379,15 @@ async function handler(req: NextRequest, { user }: { user: any }) {
               message: message.substring(0, 100), // First 100 chars
               errors: result.errors,
             },
-            ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined,
-            userAgent: req.headers.get('user-agent') || undefined,
+            ipAddress,
+            userAgent,
+            deviceType: deviceInfo.deviceType,
+            deviceName: deviceInfo.deviceName,
+            browser: deviceInfo.browser,
+            browserVersion: deviceInfo.browserVersion,
+            os: deviceInfo.os,
+            osVersion: deviceInfo.osVersion,
+            deviceInfo: formatDeviceInfo(deviceInfo),
           }
         );
 
@@ -413,6 +455,10 @@ async function handler(req: NextRequest, { user }: { user: any }) {
         const result = await sendWhatsApp(whatsappMessages, whatsappConfig);
 
         // Log the action
+        const userAgent = req.headers.get('user-agent') || undefined;
+        const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined;
+        const deviceInfo = parseDeviceInfo(userAgent);
+        
         await logActionFromRequest(
           user,
           AuditActions.SEND_WHATSAPP,
@@ -425,8 +471,15 @@ async function handler(req: NextRequest, { user }: { user: any }) {
               failed: result.failed,
               message: message.substring(0, 100), // First 100 chars
             },
-            ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined,
-            userAgent: req.headers.get('user-agent') || undefined,
+            ipAddress,
+            userAgent,
+            deviceType: deviceInfo.deviceType,
+            deviceName: deviceInfo.deviceName,
+            browser: deviceInfo.browser,
+            browserVersion: deviceInfo.browserVersion,
+            os: deviceInfo.os,
+            osVersion: deviceInfo.osVersion,
+            deviceInfo: formatDeviceInfo(deviceInfo),
           }
         );
 
