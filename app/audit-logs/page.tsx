@@ -78,6 +78,10 @@ export default function AuditLogsPage() {
         Action: log.action,
         'Entity Type': log.entityType,
         'Entity Name': log.entityName || 'N/A',
+        'Device Info': log.deviceInfo || 'N/A',
+        'Device Type': log.deviceType || 'N/A',
+        'Browser': log.browser || 'N/A',
+        'OS': log.os || 'N/A',
         'IP Address': log.ipAddress || 'N/A',
         Details: JSON.stringify(log.details || {}),
       }));
@@ -242,6 +246,7 @@ export default function AuditLogsPage() {
                       <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">User</th>
                       <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm hidden md:table-cell">Action</th>
                       <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm hidden lg:table-cell">Entity</th>
+                      <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm hidden xl:table-cell">Device</th>
                       <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm hidden lg:table-cell">IP Address</th>
                       <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-sm">Details</th>
                     </tr>
@@ -273,6 +278,22 @@ export default function AuditLogsPage() {
                               <span className="text-xs text-gray-500">{log.entityName}</span>
                             )}
                           </div>
+                        </td>
+                        <td className="py-3 px-2 sm:px-4 text-sm hidden xl:table-cell">
+                          {log.deviceInfo ? (
+                            <div className="flex flex-col">
+                              <span className="font-medium text-gray-900 text-xs">{log.deviceInfo}</span>
+                              {log.deviceType && (
+                                <span className="text-xs text-gray-500 mt-1">
+                                  {log.deviceType}
+                                  {log.browser && ` • ${log.browser}`}
+                                  {log.os && ` • ${log.os}`}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
                         </td>
                         <td className="py-3 px-2 sm:px-4 text-sm text-gray-600 hidden lg:table-cell">
                           {log.ipAddress || 'N/A'}

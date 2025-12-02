@@ -144,35 +144,47 @@ async function handler(req: NextRequest, { user }: { user: any }) {
 
       // Send via Email
       if (channelType === 'email') {
-        const emails = memberList
-          .map((m) => m.email)
-          .filter((email) => email && email.trim() !== '');
+        // Get members with valid emails
+        const membersWithEmails = memberList.filter((m) => m.email && m.email.trim() !== '');
 
-        if (emails.length === 0) {
+        if (membersWithEmails.length === 0) {
           return NextResponse.json(
             { error: 'No valid email addresses found' },
             { status: 400 }
           );
         }
 
-        const html = generateBroadcastEmail(subject, message);
-
-        // Send emails in batches to avoid rate limits
+        // Send personalized emails to each member
+        // Replace {name} placeholder with each member's name
         const batchSize = 10;
         let sent = 0;
-        for (let i = 0; i < emails.length; i += batchSize) {
-          const batch = emails.slice(i, i + batchSize);
+        let failed = 0;
+        
+        for (let i = 0; i < membersWithEmails.length; i += batchSize) {
+          const batch = membersWithEmails.slice(i, i + batchSize);
           await Promise.all(
-            batch.map((email) => sendEmail(email, subject, html))
+            batch.map(async (member: any) => {
+              try {
+                // Replace {name} with member's full name
+                const personalizedMessage = message.replace(/{name}/g, member.fullName || 'Member');
+                const personalizedSubject = subject.replace(/{name}/g, member.fullName || 'Member');
+                const html = generateBroadcastEmail(personalizedSubject, personalizedMessage);
+                await sendEmail(member.email, personalizedSubject, html);
+                sent++;
+              } catch (error) {
+                console.error(`Failed to send email to ${member.email}:`, error);
+                failed++;
+              }
+            })
           );
-          sent += batch.length;
         }
 
         return NextResponse.json({
           success: true,
-          message: `Email sent to ${sent} recipients`,
+          message: `Email sent to ${sent} recipients${failed > 0 ? `, ${failed} failed` : ''}`,
           sent,
-          total: emails.length,
+          failed,
+          total: membersWithEmails.length,
         });
       }
 
@@ -273,13 +285,30 @@ async function handler(req: NextRequest, { user }: { user: any }) {
           console.warn('⚠️ Invalid phone numbers:', invalidPhones.slice(0, 5));
         }
 
-        // Format message for SMS (NO subject - SMS doesn't support subject field, only body)
-        // SMS should only contain the message body, not subject
-        // Note: The formatPhoneNumberForSMS function will handle formatting in the SMS service
-        const smsMessages = validPhones.map((phone) => ({
-          to: phone, // Already formatted by formatPhoneNumberForSMS
-          message: message.substring(0, 160), // SMS character limit (160 chars per SMS)
-        }));
+        // Format message for SMS with personalized names
+        // Create a map of phone to member for personalization
+        const phoneToMemberMap = new Map<string, any>();
+        for (const member of memberList) {
+          if (member.phone) {
+            const formatted = formatPhoneNumberForSMS(member.phone);
+            if (formatted) {
+              phoneToMemberMap.set(formatted, member);
+            }
+          }
+        }
+
+        // Create personalized SMS messages
+        const smsMessages = validPhones.map((phone) => {
+          const member = phoneToMemberMap.get(phone);
+          // Replace {name} with member's full name, or keep original if member not found
+          const personalizedMessage = member 
+            ? message.replace(/{name}/g, member.fullName || 'Member')
+            : message;
+          return {
+            to: phone, // Already formatted by formatPhoneNumberForSMS
+            message: personalizedMessage.substring(0, 160), // SMS character limit (160 chars per SMS)
+          };
+        });
 
         let result;
         try {
@@ -360,22 +389,26 @@ async function handler(req: NextRequest, { user }: { user: any }) {
           from: process.env.WHATSAPP_FROM,
         };
 
-        const phones = memberList
-          .map((m) => m.phone)
-          .filter((phone) => phone && phone.trim() !== '');
+        const membersWithPhones = memberList.filter((m) => m.phone && m.phone.trim() !== '');
 
-        if (phones.length === 0) {
+        if (membersWithPhones.length === 0) {
           return NextResponse.json(
             { error: 'No valid phone numbers found' },
             { status: 400 }
           );
         }
 
-        const whatsappMessages = phones.map((phone) => ({
-          to: phone,
-          message: `${subject}\n\n${message}`,
-          type: 'text' as const,
-        }));
+        // Create personalized WhatsApp messages
+        const whatsappMessages = membersWithPhones.map((member: any) => {
+          // Replace {name} with member's full name
+          const personalizedMessage = message.replace(/{name}/g, member.fullName || 'Member');
+          const personalizedSubject = subject.replace(/{name}/g, member.fullName || 'Member');
+          return {
+            to: member.phone,
+            message: `${personalizedSubject}\n\n${personalizedMessage}`,
+            type: 'text' as const,
+          };
+        });
 
         const result = await sendWhatsApp(whatsappMessages, whatsappConfig);
 
@@ -387,7 +420,7 @@ async function handler(req: NextRequest, { user }: { user: any }) {
           {
             entityName: `WhatsApp: ${subject}`,
             details: {
-              recipients: phones.length,
+              recipients: membersWithPhones.length,
               sent: result.success,
               failed: result.failed,
               message: message.substring(0, 100), // First 100 chars
@@ -402,7 +435,7 @@ async function handler(req: NextRequest, { user }: { user: any }) {
           message: `WhatsApp message sent to ${result.success} recipients, ${result.failed} failed`,
           sent: result.success,
           failed: result.failed,
-          total: phones.length,
+          total: membersWithPhones.length,
           errors: result.errors,
         });
       }

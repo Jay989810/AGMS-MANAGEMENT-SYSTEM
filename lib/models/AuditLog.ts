@@ -11,6 +11,14 @@ export interface IAuditLog extends Document {
   details?: any; // Additional details about the action
   ipAddress?: string;
   userAgent?: string;
+  // Device information
+  deviceType?: string; // 'Desktop', 'Mobile', 'Tablet', 'Unknown'
+  deviceName?: string; // e.g., 'iPhone 13', 'Samsung Galaxy S21'
+  browser?: string; // e.g., 'Chrome', 'Firefox', 'Safari'
+  browserVersion?: string;
+  os?: string; // e.g., 'Windows', 'macOS', 'iOS', 'Android'
+  osVersion?: string;
+  deviceInfo?: string; // Formatted device info string
   timestamp: Date;
   createdAt: Date;
 }
@@ -55,6 +63,28 @@ const AuditLogSchema: Schema = new Schema<IAuditLog>(
     },
     userAgent: {
       type: String,
+    },
+    // Device information fields
+    deviceType: {
+      type: String,
+    },
+    deviceName: {
+      type: String,
+    },
+    browser: {
+      type: String,
+    },
+    browserVersion: {
+      type: String,
+    },
+    os: {
+      type: String,
+    },
+    osVersion: {
+      type: String,
+    },
+    deviceInfo: {
+      type: String, // Formatted device info string for easy display
     },
     timestamp: {
       type: Date,

@@ -1,5 +1,6 @@
 import connectDB from './db';
 import AuditLog from './models/AuditLog';
+import { parseDeviceInfo, formatDeviceInfo, DeviceInfo } from './device-info';
 
 export interface AuditLogData {
   userId: string;
@@ -12,6 +13,14 @@ export interface AuditLogData {
   details?: any;
   ipAddress?: string;
   userAgent?: string;
+  // Device information (optional - will be parsed from userAgent if not provided)
+  deviceType?: string;
+  deviceName?: string;
+  browser?: string;
+  browserVersion?: string;
+  os?: string;
+  osVersion?: string;
+  deviceInfo?: string;
 }
 
 /**
@@ -20,10 +29,44 @@ export interface AuditLogData {
 export async function logAction(data: AuditLogData): Promise<void> {
   try {
     await connectDB();
-    await AuditLog.create({
+    
+    // Parse device info from userAgent if not provided
+    let deviceInfo: DeviceInfo | null = null;
+    if (data.userAgent && (!data.deviceType || !data.browser)) {
+      deviceInfo = parseDeviceInfo(data.userAgent);
+    }
+    
+    // Prepare audit log data with device information
+    const auditData: any = {
       ...data,
       timestamp: new Date(),
-    });
+    };
+    
+    // Add device info if available
+    if (deviceInfo) {
+      auditData.deviceType = data.deviceType || deviceInfo.deviceType;
+      auditData.deviceName = data.deviceName || deviceInfo.deviceName;
+      auditData.browser = data.browser || deviceInfo.browser;
+      auditData.browserVersion = data.browserVersion || deviceInfo.browserVersion;
+      auditData.os = data.os || deviceInfo.os;
+      auditData.osVersion = data.osVersion || deviceInfo.osVersion;
+      auditData.deviceInfo = data.deviceInfo || formatDeviceInfo(deviceInfo);
+    } else if (data.deviceType || data.browser || data.os) {
+      // If device info was provided directly, format it
+      auditData.deviceInfo = data.deviceInfo || formatDeviceInfo({
+        deviceType: data.deviceType || 'Unknown',
+        deviceName: data.deviceName,
+        browser: data.browser || 'Unknown',
+        browserVersion: data.browserVersion,
+        os: data.os || 'Unknown',
+        osVersion: data.osVersion,
+        isMobile: data.deviceType === 'Mobile',
+        isTablet: data.deviceType === 'Tablet',
+        isDesktop: data.deviceType === 'Desktop',
+      });
+    }
+    
+    await AuditLog.create(auditData);
   } catch (error) {
     // Don't throw - audit logging should never break the main flow
     console.error('Failed to create audit log:', error);
@@ -43,6 +86,13 @@ export async function logActionFromRequest(
     details?: any;
     ipAddress?: string;
     userAgent?: string;
+    deviceType?: string;
+    deviceName?: string;
+    browser?: string;
+    browserVersion?: string;
+    os?: string;
+    osVersion?: string;
+    deviceInfo?: string;
   } = {}
 ): Promise<void> {
   await logAction({
@@ -56,6 +106,13 @@ export async function logActionFromRequest(
     details: options.details,
     ipAddress: options.ipAddress,
     userAgent: options.userAgent,
+    deviceType: options.deviceType,
+    deviceName: options.deviceName,
+    browser: options.browser,
+    browserVersion: options.browserVersion,
+    os: options.os,
+    osVersion: options.osVersion,
+    deviceInfo: options.deviceInfo,
   });
 }
 

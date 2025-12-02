@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import connectDB from '@/lib/db';
 import User from '@/lib/models/User';
 import { generateToken } from '@/lib/auth';
+import { logAction, AuditActions } from '@/lib/audit';
+import { parseDeviceInfo, formatDeviceInfo } from '@/lib/device-info';
 
 // Mark route as dynamic since it uses cookies
 export const dynamic = 'force-dynamic';
@@ -89,6 +91,37 @@ export async function POST(request: NextRequest) {
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/',
+    });
+
+    // Log login action with device information
+    const userAgent = request.headers.get('user-agent') || undefined;
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      undefined;
+    
+    const deviceInfo = parseDeviceInfo(userAgent);
+    
+    await logAction({
+      userId: user._id.toString(),
+      userName: user.name || 'Unknown',
+      userEmail: user.email,
+      action: AuditActions.LOGIN,
+      entityType: 'User',
+      entityId: user._id.toString(),
+      entityName: user.name || user.email,
+      details: {
+        loginTime: new Date().toISOString(),
+        role: user.role,
+      },
+      ipAddress,
+      userAgent,
+      deviceType: deviceInfo.deviceType,
+      deviceName: deviceInfo.deviceName,
+      browser: deviceInfo.browser,
+      browserVersion: deviceInfo.browserVersion,
+      os: deviceInfo.os,
+      osVersion: deviceInfo.osVersion,
+      deviceInfo: formatDeviceInfo(deviceInfo),
     });
 
     return response;
