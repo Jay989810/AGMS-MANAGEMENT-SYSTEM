@@ -7,7 +7,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
-import { Plus, Edit, Trash2, Download, Calendar, Filter, X } from 'lucide-react';
+import { Plus, Edit, Download, Calendar, Filter, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { exportToCSV } from '@/lib/exportToCSV';
 import Toast from '@/components/ui/Toast';
@@ -141,30 +141,6 @@ export default function FinancePage() {
     });
     setEditingId(record._id);
     setShowModal(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this financial record? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/finance/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || 'Failed to delete record');
-      }
-
-      setRecords(records.filter(r => r._id !== id));
-      setToast({ message: 'Record deleted successfully', type: 'success', isVisible: true });
-      fetchSummary();
-    } catch (error: any) {
-      setToast({ message: error.message || 'Failed to delete record. Please try again.', type: 'error', isVisible: true });
-    }
   };
 
   const resetForm = () => {
@@ -451,13 +427,6 @@ export default function FinancePage() {
                             onClick={() => handleEdit(record)}
                           >
                             <Edit size={14} className="sm:w-4 sm:h-4" />
-                          </Button>
-                          <Button
-                            variant="danger"
-                            className="p-1.5 sm:p-2"
-                            onClick={() => handleDelete(record._id)}
-                          >
-                            <Trash2 size={14} className="sm:w-4 sm:h-4" />
                           </Button>
                         </div>
                       </td>
