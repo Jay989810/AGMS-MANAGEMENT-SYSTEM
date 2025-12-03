@@ -144,26 +144,26 @@ export default function FinancePage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this record?')) return;
+    if (!confirm('Are you sure you want to delete this financial record? This action cannot be undone.')) {
+      return;
+    }
 
     try {
-      const res = await fetch(`/api/finance/${id}`, { 
+      const res = await fetch(`/api/finance/${id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
-      if (res.ok) {
-        // Update UI immediately
-        setRecords(records.filter(r => r._id !== id));
-        setToast({ message: 'Record deleted successfully', type: 'success', isVisible: true });
-        // Refresh to ensure consistency
-        fetchRecords();
-        fetchSummary();
-      } else {
-        setToast({ message: 'Failed to delete record', type: 'error', isVisible: true });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to delete record');
       }
-    } catch (error) {
-      console.error('Failed to delete record:', error);
-      setToast({ message: 'Failed to delete record', type: 'error', isVisible: true });
+
+      setRecords(records.filter(r => r._id !== id));
+      setToast({ message: 'Record deleted successfully', type: 'success', isVisible: true });
+      fetchSummary();
+    } catch (error: any) {
+      setToast({ message: error.message || 'Failed to delete record. Please try again.', type: 'error', isVisible: true });
     }
   };
 
@@ -211,9 +211,9 @@ export default function FinancePage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-NG', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'NGN',
     }).format(amount);
   };
 
