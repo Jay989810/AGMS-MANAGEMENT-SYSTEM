@@ -136,12 +136,12 @@ async function sendViaBulkSMSNigeria(
   config: SMSConfig
 ): Promise<{ success: number; failed: number; errors: any[] }> {
   // ============================================================================
-  // BULKSMS NIGERIA API V3 - BEARER TOKEN
+  // BULKSMS NIGERIA API V3/V2 - BEARER TOKEN
   // ============================================================================
-  // V3 Bearer Token from BulkSMS Nigeria dashboard
-  // This is a V3 token - ensure you're using the V3 API endpoint
+  // Vi/V2 Legacy Bearer Token from BulkSMS Nigeria dashboard
+  // This is a Vi/V2 legacy token - hardcoded as per API specification
   // ============================================================================
-  const HARDCODED_BEARER_TOKEN = '64|3sOUHaYqsNJOtM1Ci1aVObOWSl0ipVeNF0VT8WIK70b5c1b6'.trim();
+  const HARDCODED_BEARER_TOKEN = 'WeTvCYjWkZEJoG3EcOImWWZM9f7a9O1bRha3k8RhjkAgO6spbNc36h6Cnqfr'.trim();
   
   // Sender ID (max 11 characters)
   const senderId = config.senderId ? config.senderId.substring(0, 11) : 'CHURCH';
