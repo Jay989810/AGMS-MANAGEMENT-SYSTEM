@@ -120,28 +120,29 @@ export function formatPhoneNumberForSMS(phone: string): string | null {
 }
 
 /**
- * Bulk SMS Nigeria Integration (V3 API)
- * Uses V3 Bearer token authentication
+ * Bulk SMS Nigeria Integration (V1/V2 API)
+ * Uses V1/V2 legacy token authentication
  * Documentation: https://www.bulksmsnigeria.com/api
- * Base URL: https://www.bulksmsnigeria.com/api/v3
+ * Base URL: https://www.bulksmsnigeria.com/api/v2
  * 
- * V3 API Notes:
- * - Authentication via Bearer token in Authorization header (NOT in body)
- * - Endpoint: /api/v3/sms (correct RESTful endpoint)
+ * V2 API Notes:
+ * - Authentication via api_token in request body (NOT in Authorization header)
+ * - Endpoint: /api/v2/sms
  * - Method: POST
- * - Body parameters: from, to, body (NO api_token in body)
+ * - Body parameters: from, to, body, api_token
  */
 async function sendViaBulkSMSNigeria(
   messages: SMSMessage[],
   config: SMSConfig
 ): Promise<{ success: number; failed: number; errors: any[] }> {
   // ============================================================================
-  // BULKSMS NIGERIA API V3/V2 - BEARER TOKEN
+  // BULKSMS NIGERIA API V1/V2 - LEGACY TOKEN
   // ============================================================================
-  // Vi/V2 Legacy Bearer Token from BulkSMS Nigeria dashboard
-  // This is a Vi/V2 legacy token - hardcoded as per API specification
+  // V1/V2 Legacy API Token from BulkSMS Nigeria dashboard
+  // This is a V1/V2 legacy token - hardcoded as per API specification
+  // Token is used in request body as api_token parameter (NOT in Authorization header)
   // ============================================================================
-  const HARDCODED_BEARER_TOKEN = 'WeTvCYjWkZEJoG3EcOImWWZM9f7a9O1bRha3k8RhjkAgO6spbNc36h6Cnqfr'.trim();
+  const HARDCODED_API_TOKEN = 'WeTvCYjWkZEJoG3EcOImWWZM9f7a9O1bRha3k8RhjkAgO6spbNc36h6Cnqfr'.trim();
   
   // Sender ID (max 11 characters)
   const senderId = config.senderId ? config.senderId.substring(0, 11) : 'CHURCH';
@@ -150,7 +151,7 @@ async function sendViaBulkSMSNigeria(
     throw new Error('Bulk SMS Nigeria requires SMS_SENDER_ID');
   }
 
-  console.log('🔐 Using HARDCODED Bearer token (first 10 chars):', HARDCODED_BEARER_TOKEN.substring(0, 10) + '...');
+  console.log('🔐 Using HARDCODED V1/V2 API token (first 10 chars):', HARDCODED_API_TOKEN.substring(0, 10) + '...');
   console.log('📤 Sender ID:', senderId);
 
   const results: { success: number; failed: number; errors: any[] } = { success: 0, failed: 0, errors: [] };
@@ -190,11 +191,11 @@ async function sendViaBulkSMSNigeria(
     console.warn(`⚠️ ${invalidNumbers.length} invalid phone number(s) skipped:`, invalidNumbers);
   }
 
-  // Use V3 API endpoint - correct RESTful endpoint
-  const API_ENDPOINT = 'https://www.bulksmsnigeria.com/api/v3/sms';
+  // Use V2 API endpoint
+  const API_ENDPOINT = 'https://www.bulksmsnigeria.com/api/v2/sms';
   
   try {
-    console.log('🌐 Calling BulkSMS Nigeria V3 API...');
+    console.log('🌐 Calling BulkSMS Nigeria V2 API...');
     console.log('📋 Endpoint:', API_ENDPOINT);
     console.log('📋 Request payload:', {
       from: senderId,
@@ -202,22 +203,22 @@ async function sendViaBulkSMSNigeria(
       body: message.substring(0, 50) + (message.length > 50 ? '...' : ''),
       recipientCount: formattedNumbers.length
     });
-    console.log('🔐 Using V3 Bearer token (first 15 chars):', HARDCODED_BEARER_TOKEN.substring(0, 15) + '...');
+    console.log('🔐 Using V1/V2 API token (first 15 chars):', HARDCODED_API_TOKEN.substring(0, 15) + '...');
     
-    // Prepare request body - V3 uses from, to, body (NO api_token in body)
+    // Prepare request body - V2 uses from, to, body, api_token (token in body, not header)
     const requestBody = {
       from: senderId,
       to: recipients,
       body: message,
+      api_token: HARDCODED_API_TOKEN,
     };
     
     console.log('📤 Full request body:', JSON.stringify(requestBody, null, 2));
     
-    // Make POST request to V3 API endpoint
+    // Make POST request to V2 API endpoint
     const response = await fetch(API_ENDPOINT, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${HARDCODED_BEARER_TOKEN}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
@@ -234,7 +235,7 @@ async function sendViaBulkSMSNigeria(
     try {
       data = JSON.parse(responseText);
     } catch (jsonError) {
-      console.error('❌ BulkSMS Nigeria V3 API returned non-JSON response');
+      console.error('❌ BulkSMS Nigeria V2 API returned non-JSON response');
       console.error('📄 Endpoint:', API_ENDPOINT);
       console.error('📄 Response status:', response.status, response.statusText);
       console.error('📄 Response body:', responseText);
@@ -252,15 +253,15 @@ async function sendViaBulkSMSNigeria(
       return results;
     }
 
-    // Log full response for debugging (V3 API)
-    console.log('📥 BulkSMS Nigeria V3 API Response:');
+    // Log full response for debugging (V2 API)
+    console.log('📥 BulkSMS Nigeria V2 API Response:');
     console.log('   Endpoint:', API_ENDPOINT);
     console.log('   HTTP Status:', response.status, response.statusText);
     console.log('   Response Headers:', Object.fromEntries(response.headers.entries()));
     console.log('   Full Response Body:', JSON.stringify(data, null, 2));
     console.log('   Response Keys:', Object.keys(data));
 
-    // Parse response according to BulkSMS Nigeria V3 API documentation
+    // Parse response according to BulkSMS Nigeria V2 API documentation
     // Success format: {"status": "success", "code": "BSNG-0000", "data": {...}}
     // Error format: {"status": "error", "code": "BSNG-XXXX", "error": {...}}
     
@@ -315,7 +316,7 @@ async function sendViaBulkSMSNigeria(
       
       // BSNG-1xxx: Authentication errors
       if (response.status === 401 || errorCode === 'BSNG-1001' || errorCode.startsWith('BSNG-1')) {
-        userFriendlyMsg = `Authentication error: ${errorMsg}. Please verify your Bearer API token is correct and has SMS sending permissions.`;
+        userFriendlyMsg = `Authentication error: ${errorMsg}. Please verify your API token is correct and has SMS sending permissions.`;
       } 
       // BSNG-2xxx: Invalid request errors
       else if (errorCode.startsWith('BSNG-2')) {
@@ -370,11 +371,10 @@ async function sendViaBulkSMSNigeria(
         const originalMessage = messages.find(m => formatPhoneNumberForSMS(m.to) === phoneNumber) || messages[0];
         
         try {
-          // Use V3 endpoint for individual sends
+          // Use V2 endpoint for individual sends
           const individualResponse = await fetch(API_ENDPOINT, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${HARDCODED_BEARER_TOKEN}`,
               'Content-Type': 'application/json',
               'Accept': 'application/json',
             },
@@ -382,6 +382,7 @@ async function sendViaBulkSMSNigeria(
               from: senderId,
               to: phoneNumber,
               body: originalMessage.message,
+              api_token: HARDCODED_API_TOKEN,
             }),
           });
 
